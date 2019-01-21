@@ -132,12 +132,12 @@ class HackUpdate:
         print(" --> Succeeded:")
         # Try to print them without colors - fall back to colors if need be
         try:
-            print("\n".join([" ----> {}".format(x.split("m")[1].split("[")[0][:-1]) for x in kextout["succeeded"]]))
+            print("\n".join([" ----> {}".format("m".join(x.split("m")[1:])) for x in kextout["succeeded"]]))
         except:
             print("\n".join([" ----> {}".format(x) for x in kextout["succeeded"]]))
         print(" --> Failed:")
         try:
-            print("\n".join([" ----> {}".format(x.split("m")[1].split("[")[0][:-1]) for x in kextout["failed"]]))
+            print("\n".join([" ----> {}".format("m".join(x.split("m")[1:])) for x in kextout["failed"]]))
         except:
             print("\n".join([" ----> {}".format(x) for x in kextout["failed"]]))
         # Let's extract the kexts
