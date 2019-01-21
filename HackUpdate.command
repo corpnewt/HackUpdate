@@ -32,6 +32,28 @@ class HackUpdate:
             }
         os.chdir(cwd)
 
+    def get_clover_version(self, path):
+        vers_hex = "Clover revision: ".encode("utf-8")
+        vers_add = len(vers_hex)
+        with open(path, "rb") as f:
+            s = f.read()
+        location = s.find(vers_hex)
+        if location == -1:
+            return None
+        location += vers_add
+        version = ""
+        while True:
+            try:
+                vnum = s[location:location+1].decode("utf-8")
+                numtest = int(vnum)
+                version += vnum
+            except:
+                break
+            location += 1
+        if not len(version):
+            return None
+        return version
+
     def main(self):
         self.u.head("HackUpdate")
         print("")
@@ -108,10 +130,16 @@ class HackUpdate:
             else:
                 kextout["failed"].append(line.replace("    ",""))
         print(" --> Succeeded:")
-        print("\n".join([" ----> {}".format(x) for x in kextout["succeeded"]]))
+        # Try to print them without colors - fall back to colors if need be
+        try:
+            print("\n".join([" ----> {}".format(x.split("m")[1].split("[")[0][:-1]) for x in kextout["succeeded"]]))
+        except:
+            print("\n".join([" ----> {}".format(x) for x in kextout["succeeded"]]))
         print(" --> Failed:")
-        print("\n".join([" ----> {}".format(x) for x in kextout["failed"]]))
-
+        try:
+            print("\n".join([" ----> {}".format(x.split("m")[1].split("[")[0][:-1]) for x in kextout["failed"]]))
+        except:
+            print("\n".join([" ----> {}".format(x) for x in kextout["failed"]]))
         # Let's extract the kexts
         print("Locating KextExtractor...")
         if os.path.exists(ke):
@@ -125,7 +153,23 @@ class HackUpdate:
             os.path.join(lnf, "Kexts"),
             efi
         ]})
-        
+
+        # Save our current Clover version
+        print("Locating existing Clover...")
+        efi_path = self.d.get_mount_point(efi)
+        clover_path = os.path.join(efi_path, "EFI", "CLOVER", "CLOVERX64.efi")
+        if not os.path.exists(clover_path):
+            print(" - Unable to locate!")
+            exit(1)
+        print(" - Located at {}".format(clover_path))
+        # Get the version
+        print("Resolving Clover version...")
+        clover_version = self.get_clover_version(clover_path)
+        if not clover_version:
+            print(" - Unable to determine, continuing...")
+        else:
+            print(" - Located Clover v{}".format(clover_version))
+
         # Let's get our clover
         print("Locating CloverExtractor...")
         if os.path.exists(ce):
@@ -138,6 +182,17 @@ class HackUpdate:
         args.extend(self.settings.get("ce_args",[]))
         args.append(efi)
         out = self.r.run({"args":args})
+
+        # Check if the version is different
+        print("Checking final Clover version...")
+        clover_new = self.get_clover_version(clover_path)
+        if not clover_new:
+            print(" - Unable to determine, something may have gone wrong updating!")
+        else:
+            if clover_new == clover_version:
+                print(" - Clover version still v{}, something may have gone wrong updating!".format(clover_version))
+            else:
+                print(" - Clover version went from v{} --> v{}".format(clover_version, clover_new))
 
         if not efi_mounted:
             print("Unmounting EFI...")
