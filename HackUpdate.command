@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # 0.0.0
 from Scripts import *
-import os, sys, json
+import os, sys, json, shutil
 
 class HackUpdate:
     def __init__(self, **kwargs):
@@ -98,7 +98,11 @@ class HackUpdate:
                     continue
                 print(" ----> {}".format(x))
                 try:
-                    os.remove(os.path.join(lnf, "Kexts", x))
+                    test_path = os.path.join(lnf, "Kexts", x)
+                    if os.path.isdir(test_path):
+                        shutil.rmtree(test_path)
+                    else:
+                        os.remove(test_path)
                 except:
                     print(" ------> Failed to remove!")
         # Let's build the new kexts
