@@ -187,6 +187,29 @@ class HackUpdate:
         args.append(efi)
         out = self.r.run({"args":args})
 
+        # Check for any failures
+        fails = [x for x in out[0].split("\n") if "fail" in x.lower()]
+        # Check for built clover version
+        built = [x for x in out[0].split("\n") if "built clover" in x.lower()]
+        # Check for copied efi drivers
+        efis  = [x for x in out[0].split("\n") if "found" in x.lower() and "efi driver" in x.lower()]
+        # Check for listed replaced efi drivers
+        refis = [x for x in out[0].split("\n") if " replacing " in x.lower()]
+
+        # Print the results if any
+        if len(fails):
+            for x in fails:
+                print(" --> {}".format(x))
+        if len(built):
+            for x in built:
+                print(" --> {}".format(x))
+        if len(efis):
+            for x in efis:
+                print(" --> {}".format(x.split(" - ")[0]))
+        if len(refis):
+            for x in refis:
+                print(" --> {}".format(x.replace(" Replacing","Replaced").replace("...","")))
+
         # Check if the version is different
         print("Checking final Clover version...")
         clover_new = self.get_clover_version(clover_path)
