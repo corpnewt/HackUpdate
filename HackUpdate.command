@@ -194,7 +194,7 @@ class HackUpdate:
         # Check for copied efi drivers
         efis  = [x for x in out[0].split("\n") if "found" in x.lower() and "efi driver" in x.lower()]
         # Check for listed replaced efi drivers
-        refis = [x for x in out[0].split("\n") if " replacing " in x.lower()]
+        # refis = [x for x in out[0].split("\n") if " replacing " in x.lower()]
 
         # Print the results if any
         if len(fails):
@@ -205,10 +205,10 @@ class HackUpdate:
                 print(" --> {}".format(x))
         if len(efis):
             for x in efis:
-                print(" --> {}".format(x.split(" - ")[0]))
-        if len(refis):
+                print(" --> {}".format(x.split(" - ")[0].replace("Found","Updated")))
+        '''if len(refis):
             for x in refis:
-                print(" --> {}".format(x.replace(" Replacing","Replaced").replace("...","")))
+                print(" --> {}".format(x.replace(" Replacing","Replaced").replace("...","")))'''
 
         # Check if the version is different
         print("Checking final Clover version...")
