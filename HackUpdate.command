@@ -193,8 +193,8 @@ class HackUpdate:
         built = [x for x in out[0].split("\n") if "built clover" in x.lower()]
         # Check for copied efi drivers
         efis  = [x for x in out[0].split("\n") if "found" in x.lower() and "efi driver" in x.lower()]
-        # Check for listed replaced efi drivers
-        # refis = [x for x in out[0].split("\n") if " replacing " in x.lower()]
+        # Check for copied binaries
+        bins  = [x for x in out[0].split("\n") if "found" in x.lower() and "binar" in x.lower()]
 
         # Print the results if any
         if len(fails):
@@ -206,9 +206,9 @@ class HackUpdate:
         if len(efis):
             for x in efis:
                 print(" --> {}".format(x.split(" - ")[0].replace("Found","Updated")))
-        '''if len(refis):
-            for x in refis:
-                print(" --> {}".format(x.replace(" Replacing","Replaced").replace("...","")))'''
+        if len(bins):
+            for x in bins:
+                print(" --> {}".format(x.split(" - ")[0].replace("Found","Updated")))
 
         # Check if the version is different
         print("Checking final Clover version...")
@@ -216,11 +216,24 @@ class HackUpdate:
         if not clover_new:
             print(" - Unable to determine, something may have gone wrong updating!")
         else:
+            # Compare the version first to our built version
+            # and then the original as a fallback
+            built_version = ""
+            if len(built):
+                try:
+                    built_version = built[0].split("_")[-1].split(".")[0].replace("r","")
+                except:
+                    pass
             if clover_new == clover_version:
-                print(" - Clover version still v{}, something may have gone wrong updating!".format(clover_version))
+                if built_version == clover_new:
+                    # We built it
+                    print(" - Clover version v{} was built and replaced.".format(built_version))
+                else:
+                    print(" - Clover version still v{}, something may have gone wrong updating!".format(clover_version))
             else:
                 print(" - Clover version went from v{} --> v{}".format(clover_version, clover_new))
 
+        # Reset our EFI to its original state
         if not efi_mounted:
             print("Unmounting EFI...")
             self.d.unmount_partition(efi)
@@ -228,7 +241,6 @@ class HackUpdate:
         print("Done.")
         print("")
         exit()
-
 
 if __name__ == '__main__':
     h = HackUpdate(settings="./Scripts/settings.json")
