@@ -181,6 +181,21 @@ class HackUpdate:
         else:
             print(" - Unable to locate!")
             exit(1)
+        # Clear out old clover stuff
+        if os.path.exists(os.path.join(ce, "Clover")):
+            print(" --> Clover folder found, clearing...")
+            for x in os.listdir(os.path.join(ce, "Clover")):
+                if x.startswith("."):
+                    continue
+                print(" ----> {}".format(x))
+                try:
+                    test_path = os.path.join(ce, "Clover", x)
+                    if os.path.isdir(test_path):
+                        shutil.rmtree(test_path)
+                    else:
+                        os.remove(test_path)
+                except:
+                    print(" ------> Failed to remove!")
         print(" - Gathering/building and extracting Clover...")
         args = [os.path.join(ce, self.settings.get("cerun","CloverExtractor.command"))]
         args.extend(self.settings.get("ce_args",[]))
