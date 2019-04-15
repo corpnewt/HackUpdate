@@ -223,7 +223,7 @@ class HackUpdate:
                 print(" --> {}".format(x.split(" - ")[0].replace("Found","Updated")))
         if len(bins):
             for x in bins:
-                print(" --> {}".format(x.split(" - ")[0].replace("Found","Updated")))
+                print(" --> {}".format(x.replace("Found","Updated")))
 
         # Check if the version is different
         print("Checking final Clover version...")
