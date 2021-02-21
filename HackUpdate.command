@@ -20,50 +20,28 @@ class HackUpdate:
         else:
             self.settings = {
                 # Default settings here
-                "disk" : "clover", # clover, boot, or the mount point/disk identifier
+                "disk" : "bootloader", # bootloader, boot, or the mount point/disk identifier
                 "lnf"  : "../Lilu-and-Friends",
                 "lnfrun" : "Run.command",
                 "lnf_args" : ["-p", "Default"],
                 "ke" : "../KextExtractor",
                 "kerun" : "KextExtractor.command",
-                "ce" : "../CloverExtractor",
-                "cerun" : "CloverExtractor.command",
-                "ce_args" : ["build"]
+                "oc" : "../OC-Update",
+                "ocrun" : "OC-Update.command",
+                "oc_args" : ["-disk"]
             }
         os.chdir(cwd)
-
-    def get_clover_version(self, path):
-        vers_hex = "Clover revision: ".encode("utf-8")
-        vers_add = len(vers_hex)
-        with open(path, "rb") as f:
-            s = f.read()
-        location = s.find(vers_hex)
-        if location == -1:
-            return None
-        location += vers_add
-        version = ""
-        while True:
-            try:
-                vnum = s[location:location+1].decode("utf-8")
-                numtest = int(vnum)
-                version += vnum
-            except:
-                break
-            location += 1
-        if not len(version):
-            return None
-        return version
 
     def main(self):
         self.u.head("HackUpdate")
         print("")
         print("Finding EFI...")
-        if self.settings.get("disk","clover").lower() == "clover":
-            efi = self.d.get_efi(bdmesg.get_clover_uuid())
-        elif self.settings.get("disk","clover").lower() == "boot":
+        if self.settings.get("disk","bootloader").lower() == "bootloader":
+            efi = self.d.get_efi(bdmesg.get_bootloader_uuid())
+        elif self.settings.get("disk","bootloader").lower() == "boot":
             efi = self.d.get_efi("/")
         else:
-            efi = self.d.get_efi(self.settings.get("disk","clover"))
+            efi = self.d.get_efi(self.settings.get("disk","bootloader"))
         if not efi:
             print(" - Unable to locate!")
             exit(1)
@@ -82,8 +60,8 @@ class HackUpdate:
         cwd = os.getcwd()
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
         lnf = os.path.realpath(self.settings.get("lnf","../Lilu-and-Friends"))
-        ce  = os.path.realpath(self.settings.get("ce","../CloverExtractor"))
         ke  = os.path.realpath(self.settings.get("ke","../KextExtractor"))
+        oc  = os.path.realpath(self.settings.get("oc","../OC-Update"))
         os.chdir(cwd)
         if os.path.exists(lnf):
             print(" - Located at {}".format(lnf))
@@ -158,95 +136,22 @@ class HackUpdate:
             efi
         ]})
 
-        # Save our current Clover version
-        print("Locating existing Clover...")
         efi_path = self.d.get_mount_point(efi)
-        clover_path = os.path.join(efi_path, "EFI", "CLOVER", "CLOVERX64.efi")
-        if not os.path.exists(clover_path):
-            print(" - Unable to locate!")
-            exit(1)
-        print(" - Located at {}".format(clover_path))
-        # Get the version
-        print("Resolving Clover version...")
-        clover_version = self.get_clover_version(clover_path)
-        if not clover_version:
-            print(" - Unable to determine, continuing...")
-        else:
-            print(" - Located Clover v{}".format(clover_version))
-
-        # Let's get our clover
-        print("Locating CloverExtractor...")
-        if os.path.exists(ce):
-            print(" - Located at {}".format(ce))
-        else:
-            print(" - Unable to locate!")
-            exit(1)
-        # Clear out old clover stuff
-        if os.path.exists(os.path.join(ce, "Clover")):
-            print(" --> Clover folder found, clearing...")
-            for x in os.listdir(os.path.join(ce, "Clover")):
-                if x.startswith("."):
-                    continue
-                print(" ----> {}".format(x))
-                try:
-                    test_path = os.path.join(ce, "Clover", x)
-                    if os.path.isdir(test_path):
-                        shutil.rmtree(test_path)
-                    else:
-                        os.remove(test_path)
-                except:
-                    print(" ------> Failed to remove!")
-        print(" - Gathering/building and extracting Clover...")
-        args = [os.path.join(ce, self.settings.get("cerun","CloverExtractor.command"))]
-        args.extend(self.settings.get("ce_args",[]))
-        args.append(efi)
-        out = self.r.run({"args":args})
-
-        # Check for any failures
-        fails = [x for x in out[0].split("\n") if "fail" in x.lower()]
-        # Check for built clover version
-        built = [x for x in out[0].split("\n") if "built clover" in x.lower()]
-        # Check for copied efi drivers
-        efis  = [x for x in out[0].split("\n") if "found" in x.lower() and "efi driver" in x.lower()]
-        # Check for copied binaries
-        bins  = [x for x in out[0].split("\n") if "found" in x.lower() and "binar" in x.lower()]
-
-        # Print the results if any
-        if len(fails):
-            for x in fails:
-                print(" --> {}".format(x))
-        if len(built):
-            for x in built:
-                print(" --> {}".format(x))
-        if len(efis):
-            for x in efis:
-                print(" --> {}".format(x.split(" - ")[0].replace("Found","Updated")))
-        if len(bins):
-            for x in bins:
-                print(" --> {}".format(x.replace("Found","Updated")))
-
-        # Check if the version is different
-        print("Checking final Clover version...")
-        clover_new = self.get_clover_version(clover_path)
-        if not clover_new:
-            print(" - Unable to determine, something may have gone wrong updating!")
-        else:
-            # Compare the version first to our built version
-            # and then the original as a fallback
-            built_version = ""
-            if len(built):
-                try:
-                    built_version = built[0].split("_")[-1].split(".")[0].replace("r","")
-                except:
-                    pass
-            if clover_new == clover_version:
-                if built_version == clover_new:
-                    # We built it
-                    print(" - Clover version v{} was built and replaced.".format(built_version))
-                else:
-                    print(" - Clover version still v{}, something may have gone wrong updating!".format(clover_version))
+        oc_path = os.path.join(efi_path,"EFI","OC","OpenCore.efi")
+        if os.path.exists(oc_path):
+            print("Located existing OC...")
+            # Let's get our OC
+            print("Locating OC-Update...")
+            if os.path.exists(oc):
+                print(" - Located at {}".format(oc))
             else:
-                print(" - Clover version went from v{} --> v{}".format(clover_version, clover_new))
+                print(" - Unable to locate!")
+                exit(1)
+            print(" - Gathering/building and updating OC...")
+            args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
+            args.extend(self.settings.get("oc_args",[]))
+            args.append(efi)
+            out = self.r.run({"args":args})
 
         # Reset our EFI to its original state
         if not efi_mounted:
