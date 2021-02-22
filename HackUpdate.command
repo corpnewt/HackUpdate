@@ -11,7 +11,6 @@ class HackUpdate:
         self.u  = utils.Utils("HackUpdate")
         # Get the tools we need
         self.script_folder = "Scripts"
-        
         self.settings_file = kwargs.get("settings", None)
         cwd = os.getcwd()
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -32,8 +31,94 @@ class HackUpdate:
             }
         os.chdir(cwd)
 
+    def get_efi(self):
+        self.d.update()
+        boot_manager = bdmesg.get_bootloader_uuid()
+        i = 0
+        disk_string = ""
+        if not self.settings.get("full", False):
+            boot_manager_disk = self.d.get_parent(boot_manager)
+            mounts = self.d.get_mounted_volume_dicts()
+            for d in mounts:
+                i += 1
+                disk_string += "{}. {} ({})".format(i, d["name"], d["identifier"])
+                if self.d.get_parent(d["identifier"]) == boot_manager_disk:
+                    disk_string += " *"
+                disk_string += "\n"
+        else:
+            mounts = self.d.get_disks_and_partitions_dict()
+            disks = mounts.keys()
+            for d in disks:
+                i += 1
+                disk_string+= "{}. {}:\n".format(i, d)
+                parts = mounts[d]["partitions"]
+                part_list = []
+                for p in parts:
+                    p_text = "        - {} ({})".format(p["name"], p["identifier"])
+                    if p["disk_uuid"] == boot_manager:
+                        # Got boot manager
+                        p_text += " *"
+                    part_list.append(p_text)
+                if len(part_list):
+                    disk_string += "\n".join(part_list) + "\n"
+        height = len(disk_string.split("\n"))+14
+        if height < 24:
+            height = 24
+        self.u.resize(80, height)
+        self.u.head()
+        print("")
+        print(" - Please select the target EFI -")
+        print("")
+        print(disk_string)
+        if not self.settings.get("full", False):
+            print("S. Switch to Full Output")
+        else:
+            print("S. Switch to Slim Output")
+        print("B. Select the Boot Drive's EFI")
+        if boot_manager:
+            print("C. Select the Booted Clover/OC's EFI")
+        print("")
+        print("Q. Quit")
+        print(" ")
+        print("(* denotes the booted Clover/OC)")
+
+        menu = self.u.grab("Pick the drive containing your EFI:  ")
+        if not len(menu):
+            return self.get_efi()
+        if menu.lower() == "q":
+            self.u.custom_quit()
+        elif menu.lower() == "s":
+            full = self.settings.get("full", False)
+            self.settings["full"] = not full
+            return self.get_efi()
+        elif menu.lower() == "b":
+            return self.d.get_efi("/")
+        elif menu.lower() == "c" and boot_manager:
+            return self.d.get_efi(boot_manager)
+        try:
+            disk_iden = int(menu)
+            if not (disk_iden > 0 and disk_iden <= len(mounts)):
+                # out of range!
+                self.u.grab("Invalid disk!", timeout=3)
+                return self.get_efi()
+            if type(mounts) is list:
+                # We have the small list
+                disk = mounts[disk_iden-1]["identifier"]
+            else:
+                # We have the dict
+                disk = list(mounts)[disk_iden-1]
+        except:
+            disk = menu
+        iden = self.d.get_identifier(disk)
+        name = self.d.get_volume_name(disk)
+        if not iden:
+            self.u.grab("Invalid disk!", timeout=3)
+            return self.get_efi()
+        # Valid disk!
+        return self.d.get_efi(iden)
+
     def main(self):
-        self.u.head("HackUpdate")
+        self.u.head()
         print("")
         print("Finding EFI...")
         if self.settings.get("disk","bootloader").lower() == "bootloader":
@@ -43,8 +128,16 @@ class HackUpdate:
         else:
             efi = self.d.get_efi(self.settings.get("disk","bootloader"))
         if not efi:
-            print(" - Unable to locate!")
-            exit(1)
+            # Let the user pick
+            efi = self.get_efi()
+            if not efi:
+                print(" - Unable to locate!")
+                exit(1)
+            # Print the backlog
+            self.u.resize(80, 24)
+            self.u.head()
+            print("")
+            print("Finding EFI...")
         print(" - Located at {}".format(efi))
         efi_mounted = self.d.is_mounted(efi)
         if efi_mounted:
