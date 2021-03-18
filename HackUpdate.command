@@ -245,6 +245,13 @@ class HackUpdate:
             args.extend(self.settings.get("oc_args",[]))
             args.append(efi)
             out = self.r.run({"args":args})
+            # Gather the output after updating
+            if not "Updating .efi files..." in out[0]:
+                print(" --> No .efi files updated!")
+            else:
+                for line in out[0].split("Updating .efi files...")[-1].split("\n"):
+                    if not line.strip() or line.strip().lower() == "done.": continue
+                    print("    "+line)
 
         # Reset our EFI to its original state
         if not efi_mounted:
