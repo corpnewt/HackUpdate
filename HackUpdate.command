@@ -27,7 +27,9 @@ class HackUpdate:
                 "kerun" : "KextExtractor.command",
                 "oc" : "../OC-Update",
                 "ocrun" : "OC-Update.command",
-                "oc_args" : ["-disk"]
+                "oc_args" : ["-disk"],
+                "occ" : "../OCConfigCompare",
+                "occrun" : "OCConfigCompare.command"
             }
         os.chdir(cwd)
 
@@ -155,12 +157,12 @@ class HackUpdate:
         lnf = os.path.realpath(self.settings.get("lnf","../Lilu-and-Friends"))
         ke  = os.path.realpath(self.settings.get("ke","../KextExtractor"))
         oc  = os.path.realpath(self.settings.get("oc","../OC-Update"))
+        occ = os.path.realpath(self.settings.get("occ","../OCConfigCompare"))
         os.chdir(cwd)
-        if os.path.exists(lnf):
-            print(" - Located at {}".format(lnf))
-        else:
+        if not os.path.exists(lnf):
             print(" - Unable to locate!")
             exit(1)
+        print(" - Located at {}".format(lnf))
         # Clear out old kexts
         if os.path.exists(os.path.join(lnf, "Kexts")):
             print(" --> Kexts folder found, clearing...")
@@ -217,11 +219,10 @@ class HackUpdate:
             print("\n".join([" ----> {}".format(x) for x in kextout["failed"]]))
         # Let's extract the kexts
         print("Locating KextExtractor...")
-        if os.path.exists(ke):
-            print(" - Located at {}".format(ke))
-        else:
+        if not os.path.exists(ke):
             print(" - Unable to locate!")
             exit(1)
+        print(" - Located at {}".format(ke))
         print(" - Extracting kexts...")
         out = self.r.run({"args":[
             os.path.join(ke, self.settings.get("kerun","KextExtractor.command")),
@@ -235,11 +236,10 @@ class HackUpdate:
             print("Located existing OC...")
             # Let's get our OC
             print("Locating OC-Update...")
-            if os.path.exists(oc):
-                print(" - Located at {}".format(oc))
-            else:
+            if not os.path.exists(oc):
                 print(" - Unable to locate!")
                 exit(1)
+            print(" - Located at {}".format(oc))
             print(" - Gathering/building and updating OC...")
             args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
             args.extend(self.settings.get("oc_args",[]))
@@ -252,6 +252,31 @@ class HackUpdate:
                 for line in out[0].split("Updating .efi files...")[-1].split("\n"):
                     if not line.strip() or line.strip().lower() == "done.": continue
                     print("    "+line)
+        
+            print("Locating OCConfigCompare...")
+            if not os.path.exists(occ):
+                print(" - Unable to locate!")
+                exit(1)
+            print(" - Located at {}".format(occ))
+            config_path = os.path.join(efi_path,"EFI","OC","config.plist")
+            print(" - Checking for config.plist")
+            if not os.path.exists(config_path):
+                print(" --> Unable to locate!")
+                exit(1)
+            print(" --> Located at {}".format(config_path))
+            print(" - Gathering differences:")
+            args = [os.path.join(occ, self.settings.get("occrun","OCConfigCompare.command"))]
+            args.extend(["-u",config_path])
+            out = self.r.run({"args":args})
+            if not "Checking for values missing from User plist:" in out[0]:
+                print(" --> Something went wrong comparing!")
+            else:
+                print("\n    Checking for values missing from User plist:\n")
+                for line in out[0].split("Checking for values missing from User plist:")[-1].split("\n"):
+                    line = line.strip()
+                    if not line: continue
+                    if line == "Checking for values missing from Sample:": print("\n    "+line+"\n")
+                    else: print("    "+line)
 
         # Reset our EFI to its original state
         if not efi_mounted:
