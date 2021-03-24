@@ -277,6 +277,7 @@ class HackUpdate:
                     if not line: continue
                     if line == "Checking for values missing from Sample:": print("\n    "+line+"\n")
                     else: print("    "+line)
+                print("")
 
         # Reset our EFI to its original state
         if not efi_mounted:
