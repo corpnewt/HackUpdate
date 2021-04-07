@@ -49,7 +49,7 @@ class HackUpdate:
                 disk_string += "\n"
         else:
             mounts = self.d.get_disks_and_partitions_dict()
-            disks = mounts.keys()
+            disks = list(mounts)
             for d in disks:
                 i += 1
                 disk_string+= "{}. {}:\n".format(i, d)
@@ -97,20 +97,8 @@ class HackUpdate:
             return self.d.get_efi("/")
         elif menu.lower() == "c" and boot_manager:
             return self.d.get_efi(boot_manager)
-        try:
-            disk_iden = int(menu)
-            if not (disk_iden > 0 and disk_iden <= len(mounts)):
-                # out of range!
-                self.u.grab("Invalid disk!", timeout=3)
-                return self.get_efi()
-            if type(mounts) is list:
-                # We have the small list
-                disk = mounts[disk_iden-1]["identifier"]
-            else:
-                # We have the dict
-                disk = list(mounts)[disk_iden-1]
-        except:
-            disk = menu
+        try: disk = mounts[int(menu)-1]["identifier"] if isinstance(mounts, list) else list(mounts)[int(menu)-1]
+        except: disk = menu
         iden = self.d.get_identifier(disk)
         name = self.d.get_volume_name(disk)
         if not iden:
