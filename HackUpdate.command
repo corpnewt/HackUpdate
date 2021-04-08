@@ -29,8 +29,15 @@ class HackUpdate:
                 "ocrun" : "OC-Update.command",
                 "oc_args" : ["-disk"],
                 "occ" : "../OCConfigCompare",
-                "occrun" : "OCConfigCompare.command"
+                "occrun" : "OCConfigCompare.command",
+                "occ_unmount": False # Whether we unmount if differences are found or not
             }
+        self.c = {
+            "r":u"\u001b[31;1m",
+            "g":u"\u001b[32;1m",
+            "b":u"\u001b[36;1m",
+            "c":u"\u001b[0m"
+        }
         os.chdir(cwd)
 
     def get_efi(self):
@@ -220,6 +227,7 @@ class HackUpdate:
 
         efi_path = self.d.get_mount_point(efi)
         oc_path = os.path.join(efi_path,"EFI","OC","OpenCore.efi")
+        oc_diff = False
         if os.path.exists(oc_path):
             print("Located existing OC...")
             # Let's get our OC
@@ -259,18 +267,22 @@ class HackUpdate:
             if not "Checking for values missing from User plist:" in out[0]:
                 print(" --> Something went wrong comparing!")
             else:
-                print("\n    Checking for values missing from User plist:\n")
+                print("     Checking for values missing from User plist:")
                 for line in out[0].split("Checking for values missing from User plist:")[-1].split("\n"):
                     line = line.strip()
                     if not line: continue
-                    if line == "Checking for values missing from Sample:": print("\n    "+line+"\n")
-                    else: print("    "+line)
-                print("")
-
+                    if line == "Checking for values missing from Sample:": print("     "+line)
+                    elif line.startswith("- Nothing missing from "): print("      - {}None{}".format(self.c["g"],self.c["c"]))
+                    else:
+                        oc_diff = True # Retain differences
+                        print("      - {}{}{}".format(self.c["r"],line,self.c["c"]))
         # Reset our EFI to its original state
         if not efi_mounted:
-            print("Unmounting EFI...")
-            self.d.unmount_partition(efi)
+            if oc_diff and not self.settings.get("occ_unmount",False):
+                print("Leaving EFI mounted due to config.plist differences...")
+            else:
+                print("Unmounting EFI...")
+                self.d.unmount_partition(efi)
         print("")
         print("Done.")
         print("")
