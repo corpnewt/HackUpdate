@@ -25,6 +25,7 @@ class HackUpdate:
                 "lnf_args" : ["-p", "Default"],
                 "ke" : "../KextExtractor",
                 "kerun" : "KextExtractor.command",
+                # "ke_args" : [], # List of customized KextExtractor args
                 "oc" : "../OC-Update",
                 "ocrun" : "OC-Update.command",
                 "oc_args" : ["-disk"],
@@ -219,12 +220,15 @@ class HackUpdate:
             exit(1)
         print(" - Located at {}".format(ke))
         print(" - Extracting kexts...")
-        out = self.r.run({"args":[
-            os.path.join(ke, self.settings.get("kerun","KextExtractor.command")),
-            os.path.join(lnf, "Kexts"),
-            efi
-        ]})
-
+        args = [os.path.join(ke, self.settings.get("kerun","KextExtractor.command"))]
+        args.extend(self.settings.get("ke_args",[os.path.join(lnf, "Kexts"),efi]))
+        out = self.r.run({"args":args})
+        # Print the KextExtractor output
+        check_primed = False
+        for line in out[0].split("\n"):
+            if line.strip().startswith("Checking for "): check_primed = True
+            if not check_primed or not line.strip(): continue
+            print("    "+line)
         efi_path = self.d.get_mount_point(efi)
         oc_path = os.path.join(efi_path,"EFI","OC","OpenCore.efi")
         oc_diff = False
