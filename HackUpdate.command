@@ -12,10 +12,10 @@ class HackUpdate:
         # Get the tools we need
         self.script_folder = "Scripts"
         self.settings_file = kwargs.get("settings", None)
-        self.skip_kexts = kwargs.get("skip_kexts", False)
-        self.skip_opencore = kwargs.get("skip_opencore", False)
-        self.skip_plist_compare = kwargs.get("skip_plist_compare", False)
-        self.disk = kwargs.get("disk", None)
+        self.skip_building_kexts = False
+        self.skip_extracting_kexts = False
+        self.skip_opencore = False
+        self.skip_plist_compare = False
         cwd = os.getcwd()
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
         if self.settings_file and os.path.exists(self.settings_file):
@@ -23,7 +23,8 @@ class HackUpdate:
         else:
             self.settings = {
                 # Default settings here
-                "disk" : "bootloader", # ask, boot, bootloader, or the mount point/disk#s#
+                "efi"  : "bootloader", # ask, boot, bootloader, or the mount point/disk#s#
+                "disk" : None, # Overrides efi, and is an explicit mount point/identifier (not resolved to EFI)
                 "lnf"  : "../Lilu-and-Friends",
                 "lnfrun" : "Run.command",
                 "lnf_args" : ["-p", "Default"],
@@ -122,20 +123,20 @@ class HackUpdate:
     def main(self):
         self.u.head()
         print("")
-        if self.disk: # We have an explicit disk - use it
+        if self.settings.get("disk"): # We have an explicit disk - use it
             print("Resolving custom disk...")
-            efi = self.d.get_identifier(self.disk)
+            efi = self.d.get_identifier(self.settings["disk"])
             if not efi:
                 print(" - Unable to locate!")
                 exit(1)
         else:
             print("Finding EFI...")
-            if self.settings.get("disk","bootloader").lower() == "bootloader":
+            if self.settings.get("efi","bootloader").lower() == "bootloader":
                 efi = self.d.get_efi(bdmesg.get_bootloader_uuid())
-            elif self.settings.get("disk","bootloader").lower() == "boot":
+            elif self.settings.get("efi","bootloader").lower() == "boot":
                 efi = self.d.get_efi("/")
             else:
-                efi = self.d.get_efi(self.settings.get("disk","bootloader"))
+                efi = self.d.get_efi(self.settings.get("efi","bootloader"))
             if not efi:
                 # Let the user pick
                 efi = self.get_efi()
@@ -157,18 +158,19 @@ class HackUpdate:
         if not self.d.is_mounted(efi):
             print(" --> Failed to mount!")
             exit(1)
-        if self.skip_kexts:
-            print("Skipping kext building and updating...")
+        # Gather resources as needed
+        cwd = os.getcwd()
+        os.chdir(os.path.dirname(os.path.realpath(__file__)))
+        lnf = os.path.realpath(self.settings.get("lnf","../Lilu-and-Friends"))
+        ke  = os.path.realpath(self.settings.get("ke","../KextExtractor"))
+        oc  = os.path.realpath(self.settings.get("oc","../OC-Update"))
+        occ = os.path.realpath(self.settings.get("occ","../OCConfigCompare"))
+        os.chdir(cwd)
+        if self.skip_building_kexts:
+            print("Skipping kext building...")
         else:
             # Let's try to build kexts
             print("Locating Lilu-And-Friends...")
-            cwd = os.getcwd()
-            os.chdir(os.path.dirname(os.path.realpath(__file__)))
-            lnf = os.path.realpath(self.settings.get("lnf","../Lilu-and-Friends"))
-            ke  = os.path.realpath(self.settings.get("ke","../KextExtractor"))
-            oc  = os.path.realpath(self.settings.get("oc","../OC-Update"))
-            occ = os.path.realpath(self.settings.get("occ","../OCConfigCompare"))
-            os.chdir(cwd)
             if not os.path.exists(lnf):
                 print(" - Unable to locate!")
                 exit(1)
@@ -227,6 +229,9 @@ class HackUpdate:
                 print("\n".join([" ----> {}".format("m".join(x.split("m")[1:])) for x in kextout["failed"]]))
             except:
                 print("\n".join([" ----> {}".format(x) for x in kextout["failed"]]))
+        if self.skip_extracting_kexts:
+            print("Skipping kext extraction...")
+        else:
             # Let's extract the kexts
             print("Locating KextExtractor...")
             if not os.path.exists(ke):
@@ -305,9 +310,9 @@ class HackUpdate:
         # Reset our EFI to its original state
         if not efi_mounted:
             if oc_diff and not self.settings.get("occ_unmount",False):
-                print("Leaving {} mounted due to config.plist differences...".format("target disk" if self.disk else "EFI"))
+                print("Leaving {} mounted due to config.plist differences...".format("target disk" if self.settings.get("disk") else "EFI"))
             else:
-                print("Unmounting {}...".format("target disk" if self.disk else "EFI"))
+                print("Unmounting {}...".format("target disk" if self.settings.get("disk") else "EFI"))
                 self.d.unmount_partition(efi)
         print("")
         print("Done.")
@@ -318,8 +323,9 @@ if __name__ == '__main__':
     # Setup the cli args
     parser = argparse.ArgumentParser(prog="HackUpdate.command", description="HackUpdate - a py script that automates other scripts.")
     parser.add_argument("-e", "--efi", help="the EFI to consider - ask, boot, bootloader, or mount point/identifier")
-    parser.add_argument("-d", "--disk", help="the mount point/identifier to target - EFI or not")
-    parser.add_argument("-k", "--skip-kexts", help="skip building and updating kexts",action="store_true")
+    parser.add_argument("-d", "--disk", help="the mount point/identifier to target - EFI or not (overrides --efi)")
+    parser.add_argument("-b", "--skip-building-kexts", help="skips running Lilu and Friends", action="store_true")
+    parser.add_argument("-x", "--skip-extracting-kexts", help="skips running KextExtractor", action="store_true")
     parser.add_argument("-o", "--skip-opencore", help="skip building and updating OpenCore",action="store_true")
     parser.add_argument("-p", "--skip-plist-compare", help="skip comparing config.plist to latest sample.plist",action="store_true")
     parser.add_argument("-s", "--settings", help="path to settings.json file to use (default is ./Scripts/settings.json)")
@@ -328,9 +334,13 @@ if __name__ == '__main__':
 
     h = HackUpdate(settings=args.settings if args.settings else "./Scripts/settings.json")
 
-    h.skip_kexts = args.skip_kexts
+    h.skip_building_kexts = args.skip_building_kexts
+    h.skip_extracting_kexts = args.skip_extracting_kexts
     h.skip_opencore = args.skip_opencore
     h.skip_plist_compare = args.skip_plist_compare
-    h.disk = args.disk
+    if args.disk:
+        h.settings["disk"] = args.disk
+    elif args.efi:
+        h.settings["efi"] = args.efi
     
     h.main()
