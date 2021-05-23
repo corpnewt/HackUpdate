@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # 0.0.0
 from Scripts import *
-import os, sys, json, shutil
+import os, sys, json, shutil, argparse
 
 class HackUpdate:
     def __init__(self, **kwargs):
@@ -12,6 +12,10 @@ class HackUpdate:
         # Get the tools we need
         self.script_folder = "Scripts"
         self.settings_file = kwargs.get("settings", None)
+        self.skip_kexts = kwargs.get("skip_kexts", False)
+        self.skip_opencore = kwargs.get("skip_opencore", False)
+        self.skip_plist_compare = kwargs.get("skip_plist_compare", False)
+        self.disk = kwargs.get("disk", None)
         cwd = os.getcwd()
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
         if self.settings_file and os.path.exists(self.settings_file):
@@ -19,7 +23,7 @@ class HackUpdate:
         else:
             self.settings = {
                 # Default settings here
-                "disk" : "bootloader", # bootloader, boot, or the mount point/disk identifier
+                "disk" : "bootloader", # ask, boot, bootloader, or the mount point/disk#s#
                 "lnf"  : "../Lilu-and-Friends",
                 "lnfrun" : "Run.command",
                 "lnf_args" : ["-p", "Default"],
@@ -118,24 +122,31 @@ class HackUpdate:
     def main(self):
         self.u.head()
         print("")
-        print("Finding EFI...")
-        if self.settings.get("disk","bootloader").lower() == "bootloader":
-            efi = self.d.get_efi(bdmesg.get_bootloader_uuid())
-        elif self.settings.get("disk","bootloader").lower() == "boot":
-            efi = self.d.get_efi("/")
-        else:
-            efi = self.d.get_efi(self.settings.get("disk","bootloader"))
-        if not efi:
-            # Let the user pick
-            efi = self.get_efi()
+        if self.disk: # We have an explicit disk - use it
+            print("Resolving custom disk...")
+            efi = self.d.get_identifier(self.disk)
             if not efi:
                 print(" - Unable to locate!")
                 exit(1)
-            # Print the backlog
-            self.u.resize(80, 24)
-            self.u.head()
-            print("")
+        else:
             print("Finding EFI...")
+            if self.settings.get("disk","bootloader").lower() == "bootloader":
+                efi = self.d.get_efi(bdmesg.get_bootloader_uuid())
+            elif self.settings.get("disk","bootloader").lower() == "boot":
+                efi = self.d.get_efi("/")
+            else:
+                efi = self.d.get_efi(self.settings.get("disk","bootloader"))
+            if not efi:
+                # Let the user pick
+                efi = self.get_efi()
+                if not efi:
+                    print(" - Unable to locate!")
+                    exit(1)
+                # Print the backlog
+                self.u.resize(80, 24)
+                self.u.head()
+                print("")
+                print("Finding EFI...")
         print(" - Located at {}".format(efi))
         efi_mounted = self.d.is_mounted(efi)
         if efi_mounted:
@@ -146,146 +157,157 @@ class HackUpdate:
         if not self.d.is_mounted(efi):
             print(" --> Failed to mount!")
             exit(1)
-        # Let's try to build kexts
-        print("Locating Lilu-And-Friends...")
-        cwd = os.getcwd()
-        os.chdir(os.path.dirname(os.path.realpath(__file__)))
-        lnf = os.path.realpath(self.settings.get("lnf","../Lilu-and-Friends"))
-        ke  = os.path.realpath(self.settings.get("ke","../KextExtractor"))
-        oc  = os.path.realpath(self.settings.get("oc","../OC-Update"))
-        occ = os.path.realpath(self.settings.get("occ","../OCConfigCompare"))
-        os.chdir(cwd)
-        if not os.path.exists(lnf):
-            print(" - Unable to locate!")
-            exit(1)
-        print(" - Located at {}".format(lnf))
-        # Clear out old kexts
-        if os.path.exists(os.path.join(lnf, "Kexts")):
-            print(" --> Kexts folder found, clearing...")
-            for x in os.listdir(os.path.join(lnf, "Kexts")):
-                if x.startswith("."):
+        if self.skip_kexts:
+            print("Skipping kext building and updating...")
+        else:
+            # Let's try to build kexts
+            print("Locating Lilu-And-Friends...")
+            cwd = os.getcwd()
+            os.chdir(os.path.dirname(os.path.realpath(__file__)))
+            lnf = os.path.realpath(self.settings.get("lnf","../Lilu-and-Friends"))
+            ke  = os.path.realpath(self.settings.get("ke","../KextExtractor"))
+            oc  = os.path.realpath(self.settings.get("oc","../OC-Update"))
+            occ = os.path.realpath(self.settings.get("occ","../OCConfigCompare"))
+            os.chdir(cwd)
+            if not os.path.exists(lnf):
+                print(" - Unable to locate!")
+                exit(1)
+            print(" - Located at {}".format(lnf))
+            # Clear out old kexts
+            if os.path.exists(os.path.join(lnf, "Kexts")):
+                print(" --> Kexts folder found, clearing...")
+                for x in os.listdir(os.path.join(lnf, "Kexts")):
+                    if x.startswith("."):
+                        continue
+                    print(" ----> {}".format(x))
+                    try:
+                        test_path = os.path.join(lnf, "Kexts", x)
+                        if os.path.isdir(test_path):
+                            shutil.rmtree(test_path)
+                        else:
+                            os.remove(test_path)
+                    except:
+                        print(" ------> Failed to remove!")
+            # Let's build the new kexts
+            print(" - Building kexts...")
+            args = [os.path.join(lnf, self.settings.get("lnfrun","Run.command"))]
+            args.extend(self.settings.get("lnf_args",[]))
+            out = self.r.run({"args":args})
+            # Let's quick format our output
+            primed = False
+            success = False
+            kextout = {
+                "succeeded" : [],
+                "failed"    : []
+            }
+            for line in out[0].split("\n"):
+                if "succeeded:" in line.lower():
+                    primed = True
+                    success = True
                     continue
-                print(" ----> {}".format(x))
-                try:
-                    test_path = os.path.join(lnf, "Kexts", x)
-                    if os.path.isdir(test_path):
-                        shutil.rmtree(test_path)
-                    else:
-                        os.remove(test_path)
-                except:
-                    print(" ------> Failed to remove!")
-        # Let's build the new kexts
-        print(" - Building kexts...")
-        args = [os.path.join(lnf, self.settings.get("lnfrun","Run.command"))]
-        args.extend(self.settings.get("lnf_args",[]))
-        out = self.r.run({"args":args})
-        # Let's quick format our output
-        primed = False
-        success = False
-        kextout = {
-            "succeeded" : [],
-            "failed"    : []
-        }
-        for line in out[0].split("\n"):
-            if "succeeded:" in line.lower():
-                primed = True
-                success = True
-                continue
-            if not primed or line == "" or line == " ":
-                continue
-            if line.lower().startswith("build took "):
-                break
-            if "failed:" in line.lower():
-                success = False
-                continue
-            if success:
-                kextout["succeeded"].append(line.replace("    ",""))
-            else:
-                kextout["failed"].append(line.replace("    ",""))
-        print(" --> Succeeded:")
-        # Try to print them without colors - fall back to colors if need be
-        try:
-            print("\n".join([" ----> {}".format("m".join(x.split("m")[1:])) for x in kextout["succeeded"]]))
-        except:
-            print("\n".join([" ----> {}".format(x) for x in kextout["succeeded"]]))
-        print(" --> Failed:")
-        try:
-            print("\n".join([" ----> {}".format("m".join(x.split("m")[1:])) for x in kextout["failed"]]))
-        except:
-            print("\n".join([" ----> {}".format(x) for x in kextout["failed"]]))
-        # Let's extract the kexts
-        print("Locating KextExtractor...")
-        if not os.path.exists(ke):
-            print(" - Unable to locate!")
-            exit(1)
-        print(" - Located at {}".format(ke))
-        print(" - Extracting kexts...")
-        args = [os.path.join(ke, self.settings.get("kerun","KextExtractor.command"))]
-        args.extend(self.settings.get("ke_args",[os.path.join(lnf, "Kexts"),efi]))
-        out = self.r.run({"args":args})
-        # Print the KextExtractor output
-        check_primed = False
-        for line in out[0].split("\n"):
-            if line.strip().startswith("Checking for "): check_primed = True
-            if not check_primed or not line.strip(): continue
-            print("    "+line)
-        efi_path = self.d.get_mount_point(efi)
-        oc_path = os.path.join(efi_path,"EFI","OC","OpenCore.efi")
-        oc_diff = False
-        if os.path.exists(oc_path):
-            print("Located existing OC...")
-            # Let's get our OC
-            print("Locating OC-Update...")
-            if not os.path.exists(oc):
+                if not primed or line == "" or line == " ":
+                    continue
+                if line.lower().startswith("build took "):
+                    break
+                if "failed:" in line.lower():
+                    success = False
+                    continue
+                if success:
+                    kextout["succeeded"].append(line.replace("    ",""))
+                else:
+                    kextout["failed"].append(line.replace("    ",""))
+            print(" --> Succeeded:")
+            # Try to print them without colors - fall back to colors if need be
+            try:
+                print("\n".join([" ----> {}".format("m".join(x.split("m")[1:])) for x in kextout["succeeded"]]))
+            except:
+                print("\n".join([" ----> {}".format(x) for x in kextout["succeeded"]]))
+            print(" --> Failed:")
+            try:
+                print("\n".join([" ----> {}".format("m".join(x.split("m")[1:])) for x in kextout["failed"]]))
+            except:
+                print("\n".join([" ----> {}".format(x) for x in kextout["failed"]]))
+            # Let's extract the kexts
+            print("Locating KextExtractor...")
+            if not os.path.exists(ke):
                 print(" - Unable to locate!")
                 exit(1)
-            print(" - Located at {}".format(oc))
-            print(" - Gathering/building and updating OC...")
-            args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
-            args.extend(self.settings.get("oc_args",[]))
-            args.append(efi)
+            print(" - Located at {}".format(ke))
+            print(" - Extracting kexts...")
+            args = [os.path.join(ke, self.settings.get("kerun","KextExtractor.command")),"-d"]
+            args.extend(self.settings.get("ke_args",[os.path.join(lnf, "Kexts"),efi]))
             out = self.r.run({"args":args})
-            # Gather the output after updating
-            if not "Updating .efi files..." in out[0]:
-                print(" --> No .efi files updated!")
-            else:
-                for line in out[0].split("Updating .efi files...")[-1].split("\n"):
-                    if not line.strip() or line.strip().lower() == "done.": continue
-                    print("    "+line)
-        
-            print("Locating OCConfigCompare...")
-            if not os.path.exists(occ):
-                print(" - Unable to locate!")
-                exit(1)
-            print(" - Located at {}".format(occ))
-            config_path = os.path.join(efi_path,"EFI","OC","config.plist")
-            print(" - Checking for config.plist")
-            if not os.path.exists(config_path):
-                print(" --> Unable to locate!")
-                exit(1)
-            print(" --> Located at {}".format(config_path))
-            print(" - Gathering differences:")
-            args = [os.path.join(occ, self.settings.get("occrun","OCConfigCompare.command"))]
-            args.extend(["-u",config_path])
-            out = self.r.run({"args":args})
-            if not "Checking for values missing from User plist:" in out[0]:
-                print(" --> Something went wrong comparing!")
-            else:
-                print("     Checking for values missing from User plist:")
-                for line in out[0].split("Checking for values missing from User plist:")[-1].split("\n"):
-                    line = line.strip()
-                    if not line: continue
-                    if line == "Checking for values missing from Sample:": print("     "+line)
-                    elif line.startswith("- Nothing missing from "): print("      - {}None{}".format(self.c["g"],self.c["c"]))
+            # Print the KextExtractor output
+            check_primed = False
+            for line in out[0].split("\n"):
+                if line.strip().startswith("Checking for "): check_primed = True
+                if not check_primed or not line.strip(): continue
+                print("    "+line)
+        if self.skip_opencore and self.skip_plist_compare:
+            print("Skipping OpenCore building, updating, and plist compare...")
+        else:
+            efi_path = self.d.get_mount_point(efi)
+            oc_path = os.path.join(efi_path,"EFI","OC","OpenCore.efi")
+            oc_diff = False
+            if os.path.exists(oc_path):
+                print("Located existing OC...")
+                if self.skip_opencore:
+                    print("Skipping OpenCore building and updating...")
+                else:
+                    # Let's get our OC
+                    print("Locating OC-Update...")
+                    if not os.path.exists(oc):
+                        print(" - Unable to locate!")
+                        exit(1)
+                    print(" - Located at {}".format(oc))
+                    print(" - Gathering/building and updating OC...")
+                    args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
+                    args.extend(self.settings.get("oc_args",[]))
+                    args.append(efi)
+                    out = self.r.run({"args":args})
+                    # Gather the output after updating
+                    if not "Updating .efi files..." in out[0]:
+                        print(" --> No .efi files updated!")
                     else:
-                        oc_diff = True # Retain differences
-                        print("      - {}{}{}".format(self.c["r"],line,self.c["c"]))
+                        for line in out[0].split("Updating .efi files...")[-1].split("\n"):
+                            if not line.strip() or line.strip().lower() == "done.": continue
+                            print("    "+line)
+                if self.skip_plist_compare:
+                    print("Skipping plist compare...")
+                else:
+                    print("Locating OCConfigCompare...")
+                    if not os.path.exists(occ):
+                        print(" - Unable to locate!")
+                        exit(1)
+                    print(" - Located at {}".format(occ))
+                    config_path = os.path.join(efi_path,"EFI","OC","config.plist")
+                    print(" - Checking for config.plist")
+                    if not os.path.exists(config_path):
+                        print(" --> Unable to locate!")
+                        exit(1)
+                    print(" --> Located at {}".format(config_path))
+                    print(" - Gathering differences:")
+                    args = [os.path.join(occ, self.settings.get("occrun","OCConfigCompare.command"))]
+                    args.extend(["-u",config_path])
+                    out = self.r.run({"args":args})
+                    if not "Checking for values missing from User plist:" in out[0]:
+                        print(" --> Something went wrong comparing!")
+                    else:
+                        print("     Checking for values missing from User plist:")
+                        for line in out[0].split("Checking for values missing from User plist:")[-1].split("\n"):
+                            line = line.strip()
+                            if not line: continue
+                            if line == "Checking for values missing from Sample:": print("     "+line)
+                            elif line.startswith("- Nothing missing from "): print("      - {}None{}".format(self.c["g"],self.c["c"]))
+                            else:
+                                oc_diff = True # Retain differences
+                                print("      - {}{}{}".format(self.c["r"],line,self.c["c"]))
         # Reset our EFI to its original state
         if not efi_mounted:
             if oc_diff and not self.settings.get("occ_unmount",False):
-                print("Leaving EFI mounted due to config.plist differences...")
+                print("Leaving {} mounted due to config.plist differences...".format("target disk" if self.disk else "EFI"))
             else:
-                print("Unmounting EFI...")
+                print("Unmounting {}...".format("target disk" if self.disk else "EFI"))
                 self.d.unmount_partition(efi)
         print("")
         print("Done.")
@@ -293,5 +315,22 @@ class HackUpdate:
         exit()
 
 if __name__ == '__main__':
-    h = HackUpdate(settings="./Scripts/settings.json")
+    # Setup the cli args
+    parser = argparse.ArgumentParser(prog="HackUpdate.command", description="HackUpdate - a py script that automates other scripts.")
+    parser.add_argument("-e", "--efi", help="the EFI to consider - ask, boot, bootloader, or mount point/identifier")
+    parser.add_argument("-d", "--disk", help="the mount point/identifier to target - EFI or not")
+    parser.add_argument("-k", "--skip-kexts", help="skip building and updating kexts",action="store_true")
+    parser.add_argument("-o", "--skip-opencore", help="skip building and updating OpenCore",action="store_true")
+    parser.add_argument("-p", "--skip-plist-compare", help="skip comparing config.plist to latest sample.plist",action="store_true")
+    parser.add_argument("-s", "--settings", help="path to settings.json file to use (default is ./Scripts/settings.json)")
+
+    args = parser.parse_args()
+
+    h = HackUpdate(settings=args.settings if args.settings else "./Scripts/settings.json")
+
+    h.skip_kexts = args.skip_kexts
+    h.skip_opencore = args.skip_opencore
+    h.skip_plist_compare = args.skip_plist_compare
+    h.disk = args.disk
+    
     h.main()
