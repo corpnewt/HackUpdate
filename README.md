@@ -1,11 +1,89 @@
 # HackUpdate
-Python script to automate Lilu and Friends, KextExtractor, and CloverExtractor
+```
+usage: HackUpdate.command [-h] [-e EFI] [-d DISK] [-b] [-x] [-o] [-p]
+                          [-s SETTINGS]
+
+HackUpdate - a py script that automates other scripts.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -e EFI, --efi EFI     the EFI to consider - ask, boot, bootloader, or mount
+                        point/identifier
+  -d DISK, --disk DISK  the mount point/identifier to target - EFI or not
+                        (overrides --efi)
+  -b, --skip-building-kexts
+                        skip building kexts via Lilu and Friends
+  -x, --skip-extracting-kexts
+                        skip updating kexts via KextExtractor
+  -o, --skip-opencore   skip building and updating OpenCore via OC-Update
+  -p, --skip-plist-compare
+                        skip comparing config.plist to latest sample.plist via
+                        OCConfigCompare
+  -s SETTINGS, --settings SETTINGS
+                        path to settings.json file to use (default is
+                        ./Scripts/settings.json)
+```
+ 
+***
+
+By default, HackUpdate assumes the following directory structure:
+
+```
+└── Parent Directory
+    ├── HackUpdate
+    │   └── HackUpdate.command
+    ├── Lilu-and-Friends
+    │   └── Run.command
+    ├── KextExtractor
+    │   └── KextExtractor.command
+    ├── OC-Update
+    │   └── OC-Update.command
+    └── OCConfigCompare
+        └── OCConfigCompare.command
+```
+
+By default, Hackupdate will use the following CLI args for each:
+
+* Lilu And Friends: `-p Default`
+* KextExtractor: `-d bootloader_efi kexts_path` (will resolve the bootloader_efi and kexts_path)
+* OC-Update: `-disk bootloader_efi` (will resolve the bootloader_efi)
+* OCConfigCompare: `-u config_path` (will resolve the config_path)
+
+***
+
+The above can be configured via `settings.json` file (either placed in HackUpdate's `Scripts` directory, or passed via the `-s` option) with the following layout:
+
+```json
+{
+  "efi": "bootloader", 
+  "disk": null, 
+  "lnf": "../Lilu-and-Friends", 
+  "lnfrun": "Run.command", 
+  "lnf_args": [], 
+  "ke": "../KextExtractor", 
+  "kerun": "KextExtractor.command", 
+  "ke_args": [], 
+  "oc": "../OC-Update", 
+  "ocrun": "OC-Update.command", 
+  "oc_args": [], 
+  "occ": "../OCConfigCompare", 
+  "occrun": "OCConfigCompare.command", 
+  "occ_args": [], 
+  "occ_unmount": false
+}
+```
+* `efi`: Can be `boot`, `bootloader`, or a mount point/disk identifier.  Will resolve to an attached EFI partition.  If not found, will prompt.
+* `disk`: Overrides `efi`, can be a mount point/disk identifier.  Treated explicitly, will not resolve to or prompt for an EFI partition.
+* `*_args`: Should only be included if customizing - empty lists will override defaults.
+* `occ_unmount`: Sets whether we unmount the target disk if OCConfigCompare finds differences.
+
+Any settings omitted within a custom `settings.json` will fall back to defaults.
 
 ***
 
 ## To install:
 
-Do the following one line at a time in Terminal:
+Download [the zip](https://github.com/corpnewt/HackUpdate/archive/refs/heads/master.zip) of this repo, or do the following one line at a time in Terminal:
 
     git clone https://github.com/corpnewt/HackUpdate
     cd HackUpdate
