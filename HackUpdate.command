@@ -27,7 +27,7 @@ class HackUpdate:
                 "disk" : None, # Overrides efi, and is an explicit mount point/identifier (not resolved to EFI)
                 "lnf"  : "../Lilu-and-Friends",
                 "lnfrun" : "Run.command",
-                "lnf_args" : ["-p", "Default"],
+                # "lnf_args" : ["-p", "Default"], # List of customized Lilu and Friends args
                 "ke" : "../KextExtractor",
                 "kerun" : "KextExtractor.command",
                 # "ke_args" : [], # List of customized KextExtractor args
@@ -204,7 +204,7 @@ class HackUpdate:
             # Let's build the new kexts
             print(" - Building kexts...")
             args = [os.path.join(lnf, self.settings.get("lnfrun","Run.command"))]
-            args.extend(self.settings.get("lnf_args",[]))
+            args.extend(self.settings.get("lnf_args",["-p","Default"]))
             out = self.r.run({"args":args})
             # Let's quick format our output
             primed = False
