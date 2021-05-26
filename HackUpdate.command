@@ -33,9 +33,10 @@ class HackUpdate:
                 # "ke_args" : [], # List of customized KextExtractor args
                 "oc" : "../OC-Update",
                 "ocrun" : "OC-Update.command",
-                "oc_args" : ["-disk"],
+                # "oc_args" : [], # List of customized OC-Update args
                 "occ" : "../OCConfigCompare",
                 "occrun" : "OCConfigCompare.command",
+                # "occ_args" : [], # List of customized OCConfigCompare args
                 "occ_unmount": False # Whether we unmount if differences are found or not
             }
         self.c = {
@@ -249,8 +250,8 @@ class HackUpdate:
                 exit(1)
             print(" - Located at {}".format(ke))
             print(" - Extracting kexts...")
-            args = [os.path.join(ke, self.settings.get("kerun","KextExtractor.command")),"-d"]
-            args.extend(self.settings.get("ke_args",[os.path.join(lnf, "Kexts"),efi]))
+            args = [os.path.join(ke, self.settings.get("kerun","KextExtractor.command"))]
+            args.extend(self.settings.get("ke_args",["-d",os.path.join(lnf,"Kexts"),efi]))
             out = self.r.run({"args":args})
             # Print the KextExtractor output
             check_primed = False
@@ -276,8 +277,7 @@ class HackUpdate:
                     print(" - Located at {}".format(oc))
                     print(" - Gathering/building and updating OC...")
                     args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
-                    args.extend(self.settings.get("oc_args",[]))
-                    args.append(efi)
+                    args.extend(self.settings.get("oc_args",["-disk",efi]))
                     out = self.r.run({"args":args})
                     # Gather the output after updating
                     if not "Updating .efi files..." in out[0]:
@@ -302,7 +302,7 @@ class HackUpdate:
                     print(" --> Located at {}".format(config_path))
                     print(" - Gathering differences:")
                     args = [os.path.join(occ, self.settings.get("occrun","OCConfigCompare.command"))]
-                    args.extend(["-u",config_path])
+                    args.extend(self.settings.get("occ_args",["-u",config_path]))
                     out = self.r.run({"args":args})
                     if not "Checking for values missing from User plist:" in out[0]:
                         print(" --> Something went wrong comparing!")
