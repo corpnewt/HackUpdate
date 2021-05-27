@@ -47,6 +47,42 @@ class HackUpdate:
         }
         os.chdir(cwd)
 
+    def resolve_args(self, args, disk = None):
+        # Walk the passed list of args and replace instances of the following
+        # case-sensitive placeholders:
+        #
+        # [[disk]]:        the target disk/efi identifier
+        # [[mount_point]]: the target disk/efi mount point, if any
+        # [[config_path]]: mount_point/EFI/OC/config.plist
+        # [[lnf]]:         the path to Lilu-and-Friends
+        # [[ke]]:          the path to KextExtractor
+        # [[oc]]:          the path to OC-Update
+        # [[occ]]:         the path to OCConfigCompare
+        #
+
+        d = self.d.get_identifier(disk)
+        m = self.d.get_mount_point(disk)
+        c = None if m == None else os.path.join(m,"EFI","OC","config.plist")
+
+        cwd = os.getcwd()
+        os.chdir(os.path.dirname(os.path.realpath(__file__)))
+        lnf = os.path.realpath(self.settings.get("lnf","../Lilu-and-Friends"))
+        ke  = os.path.realpath(self.settings.get("ke","../KextExtractor"))
+        oc  = os.path.realpath(self.settings.get("oc","../OC-Update"))
+        occ = os.path.realpath(self.settings.get("occ","../OCConfigCompare"))
+        os.chdir(cwd)
+
+        new_args = []
+        for arg in args:
+            if d: # Only get the disk, mount_point, and config_path if accessible
+                arg = arg.replace("[[disk]]",d)
+                if m:
+                    arg = arg.replace("[[mount_point]]",m)
+                    if c: arg = arg.replace("[[config_path]]",c)
+            arg = arg.replace("[[lnf]]",lnf).replace("[[ke]]",ke).replace("[[oc]]",oc).replace("[[occ]]",occ)
+            new_args.append(arg)
+        return new_args
+
     def get_efi(self):
         self.d.update()
         boot_manager = bdmesg.get_bootloader_uuid()
@@ -204,7 +240,7 @@ class HackUpdate:
             # Let's build the new kexts
             print(" - Building kexts...")
             args = [os.path.join(lnf, self.settings.get("lnfrun","Run.command"))]
-            args.extend(self.settings.get("lnf_args",["-p","Default"]))
+            args.extend(self.resolve_args(self.settings.get("lnf_args",["-p","Default"]),efi))
             out = self.r.run({"args":args})
             # Let's quick format our output
             primed = False
@@ -251,7 +287,7 @@ class HackUpdate:
             print(" - Located at {}".format(ke))
             print(" - Extracting kexts...")
             args = [os.path.join(ke, self.settings.get("kerun","KextExtractor.command"))]
-            args.extend(self.settings.get("ke_args",["-d",os.path.join(lnf,"Kexts"),efi]))
+            args.extend(self.resolve_args(self.settings.get("ke_args",["-d",os.path.join(lnf,"Kexts"),efi]),efi))
             out = self.r.run({"args":args})
             # Print the KextExtractor output
             check_primed = False
@@ -277,7 +313,7 @@ class HackUpdate:
                     print(" - Located at {}".format(oc))
                     print(" - Gathering/building and updating OC...")
                     args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
-                    args.extend(self.settings.get("oc_args",["-d",efi]))
+                    args.extend(self.resolve_args(self.settings.get("oc_args",["-d",efi]),efi))
                     out = self.r.run({"args":args})
                     # Gather the output after updating
                     if not "Updating .efi files..." in out[0]:
@@ -302,7 +338,7 @@ class HackUpdate:
                     print(" --> Located at {}".format(config_path))
                     print(" - Gathering differences:")
                     args = [os.path.join(occ, self.settings.get("occrun","OCConfigCompare.command"))]
-                    args.extend(self.settings.get("occ_args",["-u",config_path]))
+                    args.extend(self.resolve_args(self.settings.get("occ_args",["-u",config_path]),efi))
                     out = self.r.run({"args":args})
                     if not "Checking for values missing from User plist:" in out[0]:
                         print(" --> Something went wrong comparing!")
