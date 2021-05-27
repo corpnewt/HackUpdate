@@ -77,6 +77,16 @@ The above can be configured via `settings.json` file (either placed in HackUpdat
 * `*_args`: Should only be included if customizing - empty lists will override defaults.
 * `occ_unmount`: Sets whether we unmount the target disk if OCConfigCompare finds differences.
 
+Arguments allow for placeholder subsitution via the following:
+
+* `[[disk]]`: the target disk/efi identifier
+* `[[mount_point]]`: the target disk/efi mount point, if any
+* `[[config_path]]`: mount_point/EFI/OC/config.plist
+* `[[lnf]]`: the path to Lilu-and-Friends
+* `[[ke]]`: the path to KextExtractor
+* `[[oc]]`: the path to OC-Update
+* `[[occ]]`: the path to OCConfigCompare
+
 Any settings omitted within a custom `settings.json` will fall back to defaults.
 
 ***
