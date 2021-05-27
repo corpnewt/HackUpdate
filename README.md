@@ -45,9 +45,9 @@ By default, HackUpdate assumes the following directory structure:
 By default, Hackupdate will use the following CLI args for each:
 
 * Lilu And Friends: `-p Default`
-* KextExtractor: `-d bootloader_efi kexts_path` (will resolve the bootloader_efi and kexts_path)
-* OC-Update: `-disk bootloader_efi` (will resolve the bootloader_efi)
-* OCConfigCompare: `-u config_path` (will resolve the config_path)
+* KextExtractor: `-d bootloader_efi kexts_path` (will resolve the `bootloader_efi` and `kexts_path`)
+* OC-Update: `-d bootloader_efi` (will resolve the `bootloader_efi`)
+* OCConfigCompare: `-u config_path` (will resolve the `config_path`)
 
 ***
 
