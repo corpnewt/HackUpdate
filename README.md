@@ -87,7 +87,7 @@ Arguments allow for placeholder subsitution via the following:
 * `[[oc]]`: the path to OC-Update
 * `[[occ]]`: the path to OCConfigCompare
 
-Any settings omitted within a custom `settings.json` will fall back to defaults.
+Any settings omitted from a custom `settings.json` will fall back to defaults.
 
 ***
 
