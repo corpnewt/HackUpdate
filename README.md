@@ -82,10 +82,10 @@ Arguments allow for placeholder subsitution via the following:
 * `[[disk]]`: the target disk/efi identifier
 * `[[mount_point]]`: the target disk/efi mount point, if any
 * `[[config_path]]`: mount_point/EFI/OC/config.plist
-* `[[lnf]]`: the path to Lilu-and-Friends
-* `[[ke]]`: the path to KextExtractor
-* `[[oc]]`: the path to OC-Update
-* `[[occ]]`: the path to OCConfigCompare
+* `[[lnf]]`: the path to the Lilu-and-Friends folder
+* `[[ke]]`: the path to the KextExtractor folder
+* `[[oc]]`: the path to the OC-Update folder
+* `[[occ]]`: the path to the OCConfigCompare folder
 
 Any settings omitted from a custom `settings.json` will fall back to defaults.
 
