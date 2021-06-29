@@ -347,7 +347,7 @@ class HackUpdate:
                         for line in out[0].split("Checking for values missing from User plist:")[-1].split("\n"):
                             line = line.strip()
                             if not line: continue
-                            if line == "Checking for values missing from Sample:" or (line.startswith("Updating ") and line.endswith(" with changes...")): print("     "+line)
+                            if line == "Checking for values missing from Sample:" or (line.startswith("Updating ") and line.endswith(" with changes...")) or (line.startswith("Backing up ") and line.endswith("..."): print("     "+line)
                             elif line.startswith("- Nothing missing from "): print("      - {}None{}".format(self.c["g"],self.c["c"]))
                             else:
                                 oc_diff = True # Retain differences
