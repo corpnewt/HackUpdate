@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # 0.0.0
 from Scripts import *
-import os, sys, json, shutil, argparse
+import os, sys, json, shutil, argparse, subprocess
 
 class HackUpdate:
     def __init__(self, **kwargs):
@@ -160,6 +160,10 @@ class HackUpdate:
     def main(self):
         self.u.head()
         print("")
+        pid = str(os.getpid())
+        print("Running caffeinate to prevent idle sleep...")
+        print(" - Tied to PID {}".format(pid))
+        subprocess.Popen(["caffeinate","-i","-w",pid])
         # Gather some values
         oc_diff = False
         efi = None
