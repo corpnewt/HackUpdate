@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # 0.0.0
 from Scripts import *
-import os, sys, json, shutil, argparse, subprocess
+import os, sys, json, shutil, argparse, subprocess, datetime, time
 
 class HackUpdate:
     def __init__(self, **kwargs):
@@ -46,6 +46,22 @@ class HackUpdate:
             "c":u"\u001b[0m"
         }
         os.chdir(cwd)
+
+    def get_time(self,t):
+        # A helper function to return a human readable time string from seconds
+        try:
+            dt = datetime.timedelta(seconds=int(t))
+            time_tuple = (
+                ("week",int(dt.days/7)),
+                ("day",int(dt.days%7)),
+                ("hour",int(dt.seconds/3600)),
+                ("minute",int(dt.seconds%3600/60)),
+                ("second",int(dt.seconds%3600%60))
+            )
+            msg_parts = ["{:,} {}{}".format(x[1],x[0],"" if x[1]==1 else "s") for x in time_tuple if x[1]]
+        except:
+            msg_parts = [] # Something went wrong - use an empty list
+        return ", ".join(msg_parts) if len(msg_parts) else "0 seconds"
 
     def resolve_args(self, args, disk = None):
         # Walk the passed list of args and replace instances of the following
@@ -162,7 +178,7 @@ class HackUpdate:
         print("")
         pid = str(os.getpid())
         print("Running caffeinate to prevent idle sleep...")
-        print(" - Tied to PID {}".format(pid))
+        print(" - Bound to PID {}".format(pid))
         subprocess.Popen(["caffeinate","-i","-w",pid])
         # Gather some values
         oc_diff = False
@@ -218,6 +234,7 @@ class HackUpdate:
             if not self.d.is_mounted(efi):
                 print(" --> Failed to mount!")
                 exit(1)
+        t = time.time() # Save the start time to use for later
         if self.skip_building_kexts:
             print("Skipping kext building...")
         else:
@@ -364,7 +381,7 @@ class HackUpdate:
                 print("Unmounting {}...".format("target disk" if self.settings.get("disk") else "EFI"))
                 self.d.unmount_partition(efi)
         print("")
-        print("Done.")
+        print("Done. Tasks took {}.".format(self.get_time(time.time()-t)))
         print("")
         exit()
 
