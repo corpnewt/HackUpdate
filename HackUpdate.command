@@ -176,10 +176,6 @@ class HackUpdate:
     def main(self):
         self.u.head()
         print("")
-        pid = str(os.getpid())
-        print("Running caffeinate to prevent idle sleep...")
-        print(" - Bound to PID {}".format(pid))
-        subprocess.Popen(["caffeinate","-i","-w",pid])
         # Gather some values
         oc_diff = False
         efi = None
@@ -234,6 +230,10 @@ class HackUpdate:
             if not self.d.is_mounted(efi):
                 print(" --> Failed to mount!")
                 exit(1)
+        pid = str(os.getpid())
+        print("Running caffeinate to prevent idle sleep...")
+        print(" - Bound to PID {}".format(pid))
+        subprocess.Popen(["caffeinate","-i","-w",pid])
         t = time.time() # Save the start time to use for later
         if self.skip_building_kexts:
             print("Skipping kext building...")
