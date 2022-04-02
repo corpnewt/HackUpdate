@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 # 0.0.0
-from Scripts import *
+from Scripts import bdmesg, disk, run, utils
 import os, sys, json, shutil, argparse, subprocess, datetime, time
 
 class HackUpdate:
     def __init__(self, **kwargs):
         self.r  = run.Run()
         self.d  = disk.Disk()
-        self.dl = downloader.Downloader()
         self.u  = utils.Utils("HackUpdate")
         # Get the tools we need
         self.script_folder = "Scripts"
