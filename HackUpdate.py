@@ -333,7 +333,7 @@ class HackUpdate:
                     print(" - Located at {}".format(oc))
                     print(" - Gathering/building and updating OC...")
                     args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
-                    args.extend(self.resolve_args(self.settings.get("oc_args",["-d",efi]),efi))
+                    args.extend(self.resolve_args(self.settings.get("oc_args",["-n","-d",efi]),efi))
                     out = self.r.run({"args":args})
                     # Gather the output after updating
                     if not "Updating .efi files..." in out[0]:
