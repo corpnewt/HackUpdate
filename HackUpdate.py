@@ -260,7 +260,7 @@ class HackUpdate:
             # Let's build the new kexts
             print(" - Building kexts...")
             args = [os.path.join(lnf, self.settings.get("lnfrun","Run.command"))]
-            args.extend(self.resolve_args(self.settings.get("lnf_args",["-p","Default"]),efi))
+            args.extend(self.resolve_args(self.settings.get("lnf_args",["-r","-p","Default"]),efi))
             out = self.r.run({"args":args})
             # Let's quick format our output
             primed = False
