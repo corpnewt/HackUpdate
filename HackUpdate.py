@@ -99,88 +99,93 @@ class HackUpdate:
             new_args.append(arg)
         return new_args
 
-    def get_efi(self):
-        self.d.update()
-        disk_string = ""
-        if not self.settings.get("full"):
-            boot_disk = self.d.get_parent(self.boot_manager)
-            mounts = self.d.get_mounted_volume_dicts()
-            for i,d in enumerate(mounts,start=1):
-                disk_string += "{}. {} ({})".format(str(i).rjust(2), d["name"], d["identifier"])
-                if self.d.get_parent(d["identifier"]) == boot_disk:
-                    disk_string += " *"
-                disk_string += "\n"
-        else:
-            mounts = self.d.get_disks_and_partitions_dict()
-            disks = list(mounts)
-            for i,d in enumerate(disks,start=1):
-                disk_string+= "{}. {}:\n".format(str(i).rjust(2),d)
-                if mounts[d].get("scheme"):
-                    disk_string += "      {}\n".format(mounts[d]["scheme"])
-                if mounts[d].get("physical_stores"):
-                    disk_string += "      Physical Store{} on {}\n".format(
-                        "" if len(mounts[d]["physical_stores"])==1 else "s",
-                        ", ".join(mounts[d]["physical_stores"])
-                    )
-                parts = mounts[d]["partitions"]
-                part_list = []
-                for p in parts:
-                    name = "Container for {}".format(p["container_for"]) if "container_for" in p else p["name"]
-                    p_text = "        - {} ({})".format(name, p["identifier"])
-                    if p["disk_uuid"] == self.boot_manager:
-                        # Got boot manager
-                        p_text += " *"
-                    part_list.append(p_text)
-                if len(part_list):
-                    disk_string += "\n".join(part_list) + "\n"
-        height = len(disk_string.split("\n"))+14
-        if height < 24:
-            height = 24
-        if self.settings.get("resize_window",True): self.u.resize(80, height)
-        self.u.head()
-        print(" ")
-        print(disk_string)
-        if not self.settings.get("full"):
-            print("S. Switch to Full Output")
-        else:
-            print("S. Switch to Slim Output")
-        print("B. Select the Boot Drive's EFI")
-        if self.boot_manager:
-            print("C. Select the Booted EFI (Clover/OC)")
-        print("")
-        print("Q. Quit")
-        print(" ")
-        print("(* denotes the booted EFI (Clover/OC))")
-
-        menu = self.u.grab("Pick the drive containing your EFI:  ")
-        if not len(menu):
-            return self.get_efi()
-        if menu.lower() == "q":
+    def get_efi(self,allow_main=True):
+        while True:
+            self.d.update()
+            pad = 4
+            disk_string = "\n"
+            if not self.settings.get("full"):
+                boot_disk = self.d.get_parent(self.boot_manager)
+                mounts = self.d.get_mounted_volume_dicts()
+                for i,d in enumerate(mounts,start=1):
+                    disk_string += "{}. {} ({})".format(str(i).rjust(2), d["name"], d["identifier"])
+                    if boot_disk and self.d.get_parent(d["identifier"]) == boot_disk:
+                        disk_string += " *"
+                    disk_string += "\n"
+            else:
+                mounts = self.d.get_disks_and_partitions_dict()
+                disks = list(mounts)
+                for i,d in enumerate(disks,start=1):
+                    disk_string+= "{}. {}:\n".format(str(i).rjust(2),d)
+                    if mounts[d].get("scheme"):
+                        disk_string += "      {}\n".format(mounts[d]["scheme"])
+                    if mounts[d].get("physical_stores"):
+                        disk_string += "      Physical Store{} on {}\n".format(
+                            "" if len(mounts[d]["physical_stores"])==1 else "s",
+                            ", ".join(mounts[d]["physical_stores"])
+                        )
+                    parts = mounts[d]["partitions"]
+                    part_list = []
+                    for p in parts:
+                        name = "Container for {}".format(p["container_for"]) if "container_for" in p else p["name"]
+                        p_text = "        - {} ({})".format(name, p["identifier"])
+                        if self.boot_manager and p["disk_uuid"] == self.boot_manager:
+                            # Got boot manager
+                            p_text += " *"
+                        part_list.append(p_text)
+                    if len(part_list):
+                        disk_string += "\n".join(part_list) + "\n"
+            disk_string += "\nS. Switch to {} Output\n".format("Slim" if self.settings.get("full") else "Full")
+            disk_string += "B. Select the Boot Drive's EFI\n"
+            if self.boot_manager:
+                disk_string += "C. Select the Booted EFI (Clover/OC)\n"
+            disk_string += ("\nM. Main" if allow_main else "") + "\nQ. Quit\n"
+            if self.boot_manager:
+                disk_string += "\n(* denotes the booted EFI (Clover/OC)"
+            height = max(len(disk_string.split("\n"))+pad,24)
+            if self.settings.get("resize_window",True): self.u.resize(80,height)
+            self.u.head()
+            print(disk_string)
+            menu = self.u.grab("Pick the drive containing your EFI:  ")
+            if not len(menu):
+                continue
+            if menu.lower() == "q":
+                if self.settings.get("resize_window",True): self.u.resize(80,24)
+                self.u.custom_quit()
+            elif allow_main and menu.lower() == "m":
+                if self.settings.get("resize_window",True): self.u.resize(80,24)
+                return
+            elif menu.lower() == "s":
+                self.settings["full"] = not self.settings.get("full")
+                continue
+            elif menu.lower() == "b":
+                disk = "/"
+                iden = self.d.get_efi("/")
+            elif menu.lower() == "c" and self.boot_manager:
+                disk = self.boot_manager
+                iden = self.d.get_efi(self.boot_manager)
+            else:
+                try: disk = mounts[int(menu)-1]["identifier"] if isinstance(mounts,list) else list(mounts)[int(menu)-1]
+                except: disk = menu
             if self.settings.get("resize_window",True): self.u.resize(80,24)
-            self.u.custom_quit()
-        elif menu.lower() == "s":
-            self.settings["full"] = not self.settings.get("full")
-            return self.get_efi()
-        elif menu == "b":
-            return self.d.get_efi("/")
-        elif menu == "c" and self.boot_manager:
-            return self.d.get_efi(self.boot_manager)
-        try: disk = mounts[int(menu)-1]["identifier"] if isinstance(mounts, list) else list(mounts)[int(menu)-1]
-        except: disk = menu
-        iden = self.d.get_identifier(disk)
-        if not iden:
-            self.u.grab("Invalid disk!", timeout=3)
-            return self.get_efi()
-        # Valid disk!
-        efi = self.d.get_efi(iden)
-        if not efi:
-            self.u.head("No EFI Partition")
-            print("")
-            print("There is no EFI partition associated with {}!".format(iden))
-            print("")
-            self.u.grab("Press returning in 3 seconds...", timeout=3)
-            return self.get_efi()
-        return efi
+            iden = self.d.get_identifier(disk)
+            if not iden:
+                self.u.head("Invalid Disk")
+                print("")
+                print("'{}' is not a valid disk!".format(disk))
+                print("")
+                self.u.grab("Returning in 3 seconds...", timeout=3)
+                continue
+            # Valid disk!
+            efi = self.d.get_efi(iden)
+            if not efi:
+                self.u.head("No EFI Partition")
+                print("")
+                print("There is no EFI partition associated with {}!".format(iden))
+                print("")
+                self.u.grab("Returning in 3 seconds...", timeout=3)
+                continue
+            return efi
 
     def main(self):
         self.u.head()
@@ -220,7 +225,7 @@ class HackUpdate:
                     efi = self.d.get_efi(self.settings.get("efi","bootloader"))
                 if not efi:
                     # Let the user pick
-                    efi = self.get_efi()
+                    efi = self.get_efi(allow_main=False)
                     if not efi:
                         print(" - Unable to locate!")
                         exit(1)
