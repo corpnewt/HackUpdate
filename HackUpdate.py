@@ -85,7 +85,7 @@ class HackUpdate:
         # [[mount_point]]: the target disk/efi mount point, if any
         # [[folder_path]]: the target folder, if any - overrides disk and mount_point
         # [[config_path]]: resolves config.plist based on the folder_path or mount_point
-        # [[oc_path]]:     resolves penCore.efi based on the folder_path or mount_point
+        # [[oc_path]]:     resolves OpenCore.efi based on the folder_path or mount_point
         # [[lnf]]:         the path to Lilu-and-Friends
         # [[ke]]:          the path to KextExtractor
         # [[oc]]:          the path to OC-Update
