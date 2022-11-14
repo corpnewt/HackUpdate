@@ -1,16 +1,19 @@
 # HackUpdate
 ```
-usage: HackUpdate.command [-h] [-e EFI] [-d DISK] [-b] [-x] [-o] [-p]
-                          [-s SETTINGS]
+usage: HackUpdate.command [-h] [-e EFI] [-d DISK] [-f FOLDER_PATH] [-b] [-x]
+                          [-o] [-p] [-s SETTINGS]
 
 HackUpdate - a py script that automates other scripts.
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -e EFI, --efi EFI     the EFI to consider - ask, boot, bootloader, or mount
                         point/identifier
   -d DISK, --disk DISK  the mount point/identifier to target - EFI or not
                         (overrides --efi)
+  -f FOLDER_PATH, --folder-path FOLDER_PATH
+                        an explicit path to use for the EFI (overrides --efi
+                        and --disk)
   -b, --skip-building-kexts
                         skip building kexts via Lilu and Friends
   -x, --skip-extracting-kexts
@@ -45,8 +48,8 @@ By default, HackUpdate assumes the following directory structure:
 By default, Hackupdate will use the following CLI args for each:
 
 * Lilu And Friends: `-r -p Default`
-* KextExtractor: `-d bootloader_efi kexts_path` (will resolve the `bootloader_efi` and `kexts_path`)
-* OC-Update: `-n -d bootloader_efi` (will resolve the `bootloader_efi`)
+* KextExtractor: `-d folder_or_bootloader_efi kexts_path` (will resolve the `folder_or_bootloader_efi` and `kexts_path`)
+* OC-Update: `-n -d folder_or_bootloader_efi` (will resolve the `folder_or_bootloader_efi`)
 * OCConfigCompare: `-w -u config_path` (will resolve the `config_path`)
 
 ***
@@ -57,6 +60,11 @@ The above can be configured via `settings.json` file (either placed in HackUpdat
 {
   "efi": "bootloader", 
   "disk": null, 
+  "folder_path" : null,
+  "skip_building_kexts" : false,
+  "skip_extracting_kexts" : false,
+  "skip_opencore" : false,
+  "skip_plist_compare" : false,
   "lnf": "../Lilu-and-Friends", 
   "lnfrun": "Run.command", 
   "lnf_args": [], 
@@ -74,14 +82,17 @@ The above can be configured via `settings.json` file (either placed in HackUpdat
 ```
 * `efi`: Can be `boot`, `bootloader`, or a mount point/disk identifier.  Will resolve to an attached EFI partition.  If not found, will prompt.
 * `disk`: Overrides `efi`, can be a mount point/disk identifier.  Treated explicitly, will not resolve to or prompt for an EFI partition.
-* `*_args`: Should only be included if customizing - empty lists will override defaults.
+* `folder_path`: Overrides `disk` and `efi` and should point to the target EFI or OC folder.
+* `*_args`: Should only be included if customizing - empty lists will be ignored, and default settings will be used instead.
 * `occ_unmount`: Sets whether we unmount the target disk if OCConfigCompare finds differences.
 
 Arguments allow for placeholder subsitution via the following:
 
 * `[[disk]]`: the target disk/efi identifier
 * `[[mount_point]]`: the target disk/efi mount point, if any
-* `[[config_path]]`: mount_point/EFI/OC/config.plist
+* `[[folder_path]]`: the target folder, if any - overrides `disk` and `mount_point`
+* `[[config_path]]`: resolves config.plist based on the `folder_path` or `mount_point`
+* `[[oc_path]]`: resolves OpenCore.efi based on the `folder_path` or `mount_point`
 * `[[lnf]]`: the path to the Lilu-and-Friends folder
 * `[[ke]]`: the path to the KextExtractor folder
 * `[[oc]]`: the path to the OC-Update folder
