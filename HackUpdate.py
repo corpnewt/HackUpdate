@@ -45,6 +45,14 @@ class HackUpdate:
                 # "occ_args" : [], # List of customized OCConfigCompare args
                 "occ_unmount": False # Whether we unmount if differences are found or not
             }
+        # Let's strip empty *_args entries
+        empty_args = []
+        for key in self.settings:
+            if key.endswith("_args") and isinstance(self.settings[key],(list,tuple)) and not self.settings[key]:
+                empty_args.append(key)
+        for key in empty_args:
+            self.settings.pop(key,None)
+        # Setup some colors
         self.c = {
             "r":u"\u001b[31;1m",
             "g":u"\u001b[32;1m",
@@ -470,7 +478,7 @@ if __name__ == '__main__':
         h.settings["skip_opencore"] = args.skip_opencore
     if args.skip_plist_compare:
         h.settings["skip_plist_compare"] = args.skip_plist_compare
-        
+
     # Check for pathing/disk/efi settings
     if args.folder_path:
         h.settings["folder_path"] = args.folder_path
