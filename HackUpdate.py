@@ -27,6 +27,7 @@ class HackUpdate:
                 "efi"  : "bootloader", # ask, boot, bootloader, or the mount point/disk#s#
                 "disk" : None, # Overrides efi, and is an explicit mount point/identifier (not resolved to EFI)
                 "folder_path" : None, # Overrides disk and efi, and is a direct path to the EFI folder
+                "no_header": False,
                 "skip_building_kexts" : False,
                 "skip_extracting_kexts" : False,
                 "skip_opencore" : False,
@@ -228,8 +229,9 @@ class HackUpdate:
             return efi
 
     def main(self):
-        self.u.head()
-        print("")
+        if not self.settings.get("no_header"):
+            self.u.head()
+            print("")
         # Gather some values
         oc_diff = False
         efi = None
@@ -386,61 +388,56 @@ class HackUpdate:
                 if line.strip().startswith("Checking for "): check_primed = True
                 if not check_primed or not line.strip(): continue
                 print("    "+line)
-        if skip_opencore and skip_plist_compare:
-            print("Skipping OpenCore building, updating, and plist compare...")
+        if skip_opencore:
+            print("Skipping OpenCore building and updating...")
         else:
-            oc_path,config_path = self.resolve_args(["[[oc_path]]","[[config_path]]"],disk=efi,folder_path=folder_path)
-            if oc_path and os.path.exists(oc_path):
-                print("Located existing OC...")
-                if skip_opencore:
-                    print("Skipping OpenCore building and updating...")
-                else:
-                    # Let's get our OC
-                    print("Locating OC-Update...")
-                    if not os.path.exists(oc):
-                        print(" - Unable to locate!")
-                        exit(1)
-                    print(" - Located at {}".format(oc))
-                    print(" - Gathering/building and updating OC...")
-                    args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
-                    args.extend(self.resolve_args(self.settings.get("oc_args",["-n","-p",folder_path] if folder_path else ["-n","-d",efi]),disk=efi,folder_path=folder_path))
-                    out = self.r.run({"args":args})
-                    # Gather the output after updating
-                    if not "Updating .efi files..." in out[0]:
-                        print(" --> No .efi files updated!")
+            # Let's get our OC
+            print("Locating OC-Update...")
+            if not os.path.exists(oc):
+                print(" - Unable to locate!")
+                exit(1)
+            print(" - Located at {}".format(oc))
+            print(" - Gathering/building and updating OC...")
+            args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
+            args.extend(self.resolve_args(self.settings.get("oc_args",["-n","-p",folder_path] if folder_path else ["-n","-d",efi]),disk=efi,folder_path=folder_path))
+            out = self.r.run({"args":args})
+            # Gather the output after updating
+            if not "Updating .efi files..." in out[0]:
+                print(" --> No .efi files updated!")
+            else:
+                for line in out[0].split("Updating .efi files...")[-1].split("\n"):
+                    if not line.strip() or line.strip().lower() == "done.": continue
+                    print("    "+line)
+        if skip_plist_compare:
+            print("Skipping plist compare...")
+        else:
+            print("Locating OCConfigCompare...")
+            if not os.path.exists(occ):
+                print(" - Unable to locate!")
+                exit(1)
+            print(" - Located at {}".format(occ))
+            print(" - Checking for config.plist")
+            config_path = self.resolve_args(["[[config_path]]"],disk=efi,folder_path=folder_path)[0]
+            if not config_path or not os.path.exists(config_path):
+                print(" --> Unable to locate!")
+                exit(1)
+            print(" --> Located at {}".format(config_path))
+            print(" - Gathering differences:")
+            args = [os.path.join(occ, self.settings.get("occrun","OCConfigCompare.command"))]
+            args.extend(self.resolve_args(self.settings.get("occ_args",["-w","-u",config_path]),disk=efi,folder_path=folder_path))
+            out = self.r.run({"args":args})
+            if not "Checking for values missing from User plist:" in out[0]:
+                print(" --> Something went wrong comparing!")
+            else:
+                print("     Checking for values missing from User plist:")
+                for line in out[0].split("Checking for values missing from User plist:")[-1].split("\n"):
+                    line = line.strip()
+                    if not line: continue
+                    if line == "Checking for values missing from Sample:" or (line.startswith("Updating ") and line.endswith(" with changes...")) or (line.startswith("Backing up ") and line.endswith("...")): print("     "+line)
+                    elif line.startswith("- Nothing missing from "): print("      - {}None{}".format(self.c["g"],self.c["c"]))
                     else:
-                        for line in out[0].split("Updating .efi files...")[-1].split("\n"):
-                            if not line.strip() or line.strip().lower() == "done.": continue
-                            print("    "+line)
-                if skip_plist_compare:
-                    print("Skipping plist compare...")
-                else:
-                    print("Locating OCConfigCompare...")
-                    if not os.path.exists(occ):
-                        print(" - Unable to locate!")
-                        exit(1)
-                    print(" - Located at {}".format(occ))
-                    print(" - Checking for config.plist")
-                    if not config_path or not os.path.exists(config_path):
-                        print(" --> Unable to locate!")
-                        exit(1)
-                    print(" --> Located at {}".format(config_path))
-                    print(" - Gathering differences:")
-                    args = [os.path.join(occ, self.settings.get("occrun","OCConfigCompare.command"))]
-                    args.extend(self.resolve_args(self.settings.get("occ_args",["-w","-u",config_path]),disk=efi,folder_path=folder_path))
-                    out = self.r.run({"args":args})
-                    if not "Checking for values missing from User plist:" in out[0]:
-                        print(" --> Something went wrong comparing!")
-                    else:
-                        print("     Checking for values missing from User plist:")
-                        for line in out[0].split("Checking for values missing from User plist:")[-1].split("\n"):
-                            line = line.strip()
-                            if not line: continue
-                            if line == "Checking for values missing from Sample:" or (line.startswith("Updating ") and line.endswith(" with changes...")) or (line.startswith("Backing up ") and line.endswith("...")): print("     "+line)
-                            elif line.startswith("- Nothing missing from "): print("      - {}None{}".format(self.c["g"],self.c["c"]))
-                            else:
-                                oc_diff = True # Retain differences
-                                print("      - {}{}{}".format(self.c["r"],line,self.c["c"]))
+                        oc_diff = True # Retain differences
+                        print("      - {}{}{}".format(self.c["r"],line,self.c["c"]))
         # Reset our EFI to its original state
         if not efi_mounted:
             if oc_diff and not self.settings.get("occ_unmount",False):
@@ -461,15 +458,16 @@ if __name__ == '__main__':
     parser.add_argument("-f", "--folder-path", help="an explicit path to use for the EFI (overrides --efi and --disk)")
     parser.add_argument("-b", "--skip-building-kexts", help="skip building kexts via Lilu and Friends", action="store_true")
     parser.add_argument("-x", "--skip-extracting-kexts", help="skip updating kexts via KextExtractor", action="store_true")
-    parser.add_argument("-o", "--skip-opencore", help="skip building and updating OpenCore via OC-Update",action="store_true")
-    parser.add_argument("-p", "--skip-plist-compare", help="skip comparing config.plist to latest sample.plist via OCConfigCompare",action="store_true")
+    parser.add_argument("-o", "--skip-opencore", help="skip building and updating OpenCore via OC-Update", action="store_true")
+    parser.add_argument("-p", "--skip-plist-compare", help="skip comparing config.plist to latest sample.plist via OCConfigCompare", action="store_true")
+    parser.add_argument("-n", "--no-header", help="prevents clearing the screen and printing the header at script start", action="store_true")
     parser.add_argument("-s", "--settings", help="path to settings.json file to use (default is ./Scripts/settings.json)")
 
     args = parser.parse_args()
 
     h = HackUpdate(settings=args.settings if args.settings else "./Scripts/settings.json")
 
-    # Setup any phase overrides
+    # Setup any phase/header overrides
     if args.skip_building_kexts:
         h.settings["skip_building_kexts"] = args.skip_building_kexts
     if args.skip_extracting_kexts:
@@ -478,6 +476,8 @@ if __name__ == '__main__':
         h.settings["skip_opencore"] = args.skip_opencore
     if args.skip_plist_compare:
         h.settings["skip_plist_compare"] = args.skip_plist_compare
+    if args.no_header:
+        h.settings["no_header"] = args.no_header
 
     # Check for pathing/disk/efi settings
     if args.folder_path:
