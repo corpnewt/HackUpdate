@@ -1,7 +1,7 @@
 # HackUpdate
 ```
 usage: HackUpdate.command [-h] [-e EFI] [-d DISK] [-f FOLDER_PATH] [-b] [-x]
-                          [-o] [-p] [-s SETTINGS]
+                          [-o] [-p] [-n] [-s SETTINGS]
 
 HackUpdate - a py script that automates other scripts.
 
@@ -22,6 +22,8 @@ options:
   -p, --skip-plist-compare
                         skip comparing config.plist to latest sample.plist via
                         OCConfigCompare
+  -n, --no-header       prevents clearing the screen and printing the header
+                        at script start
   -s SETTINGS, --settings SETTINGS
                         path to settings.json file to use (default is
                         ./Scripts/settings.json)
@@ -61,6 +63,7 @@ The above can be configured via `settings.json` file (either placed in HackUpdat
   "efi": "bootloader", 
   "disk": null, 
   "folder_path" : null,
+  "no_header": false,
   "skip_building_kexts" : false,
   "skip_extracting_kexts" : false,
   "skip_opencore" : false,
