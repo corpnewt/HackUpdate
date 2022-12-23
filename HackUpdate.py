@@ -396,7 +396,7 @@ class HackUpdate:
             except:
                 print("\n".join([" ----> {}".format(x) for x in kextout["succeeded"]]))
             print(" --> Failed:")
-            print("\n".join([" ----> {}".format(x) for x in kextout["failed"]]))
+            print("\n".join(["{} ----> {}".format(self.c["c"],x) for x in kextout["failed"]]))
         if skip_extracting_kexts:
             print("Skipping kext extraction...")
         else:
