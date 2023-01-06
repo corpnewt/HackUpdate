@@ -380,7 +380,7 @@ class HackUpdate:
                     continue
                 if not primed or line == "" or line == " ":
                     continue
-                if line.lower().startswith("build took "):
+                if line.lower().startswith(("build took ","downloading took")):
                     break
                 if "failed:" in line.lower():
                     success = False
@@ -390,11 +390,7 @@ class HackUpdate:
                 else:
                     kextout["failed"].append(line.replace("    ",""))
             print(" --> Succeeded:")
-            # Try to print them without colors - fall back to colors if need be
-            try:
-                print("\n".join([" ----> {}".format("m".join(x.split("m")[1:])) for x in kextout["succeeded"]]))
-            except:
-                print("\n".join([" ----> {}".format(x) for x in kextout["succeeded"]]))
+            print("\n".join(["{} ----> {}".format(self.c["c"],x) for x in kextout["succeeded"]]))
             print(" --> Failed:")
             print("\n".join(["{} ----> {}".format(self.c["c"],x) for x in kextout["failed"]]))
         if skip_extracting_kexts:
