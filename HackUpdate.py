@@ -498,7 +498,7 @@ if __name__ == '__main__':
         h.settings["skip_building_kexts"] = args.skip_building_kexts
     if args.skip_extracting_kexts:
         h.settings["skip_extracting_kexts"] = args.skip_extracting_kexts
-    if args.skip_building_kexts:
+    if args.skip_opencore:
         h.settings["skip_opencore"] = args.skip_opencore
     if args.skip_plist_compare:
         h.settings["skip_plist_compare"] = args.skip_plist_compare
