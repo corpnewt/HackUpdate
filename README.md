@@ -80,7 +80,27 @@ The above can be configured via `settings.json` file (either placed in HackUpdat
   "occ": "../OCConfigCompare", 
   "occrun": "OCConfigCompare.command", 
   "occ_args": [], 
-  "occ_unmount": false
+  "occ_unmount": false,
+  "preflight": [
+    {
+      "path": "/path/to/tool",
+      "args": [
+        "arguments"
+      ],
+      "message": "Whatever you want to print during the task",
+      "abort_on_fail": true
+    }
+  ],
+  "postflight": [
+    {
+      "path": "/path/to/tool",
+      "args": [
+        "arguments"
+      ],
+      "message": "Whatever you want to print during the task",
+      "abort_on_fail": true
+    }
+  ],
 }
 ```
 * `efi`: Can be `boot`, `bootloader`, or a mount point/disk identifier.  Will resolve to an attached EFI partition.  If not found, will prompt.
