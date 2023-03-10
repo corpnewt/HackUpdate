@@ -45,11 +45,17 @@ class HackUpdate:
                 "occrun" : "OCConfigCompare.command",
                 # "occ_args" : [], # List of customized OCConfigCompare args
                 "occ_unmount": False # Whether we unmount if differences are found or not
+                # preflight : [ # List of tasks to run before anything else
+                #    {"path":"/path/to/tool","args":["list","of","args"],"message":"something to display","abort_on_fail":True/False}
+                # ],
+                # postflight : [ # List of tasks to run after everything else
+                #    {"path":"/path/to/tool","args":["list","of","args"],"message":"something to display","abort_on_fail":True/False}
+                # ]
             }
         # Let's strip empty *_args entries
         empty_args = []
         for key in self.settings:
-            if key.endswith("_args") and isinstance(self.settings[key],(list,tuple)) and not self.settings[key]:
+            if (key.endswith("_args") or key in ("preflight","postflight")) and isinstance(self.settings[key],(list,tuple)) and not self.settings[key]:
                 empty_args.append(key)
         for key in empty_args:
             self.settings.pop(key,None)
@@ -258,6 +264,38 @@ class HackUpdate:
                 continue
             return efi
 
+    def run_tasks(self,key="preflight",disk=None,folder_path=None):
+        print("Iterating {} tasks ({:,} total)".format(key,len(self.settings[key])))
+        for i,task in enumerate(self.settings[key],start=1):
+            print(" - Task {:,} of {:,}:".format(i,len(self.settings[key])))
+            if not "path" in task:
+                print(" --> Task malformed!")
+                if task.get("abort_on_fail"):
+                    print(" ---> Aborting...")
+                    exit(1)
+                continue
+            # Got a valid task - verify the path exists
+            if not os.path.exists(task["path"]):
+                print(" --> Unable to locate {}!".format(task["path"]))
+                if task.get("abort_on_fail"):
+                    print(" ---> Aborting...")
+                    exit(1)
+                continue
+            # Try to gather args
+            args = [task["path"]]
+            print(" --> {}{}".format(
+                task["path"],
+                ": "+str(task["message"]) if "message" in task else ""
+            ))
+            if task.get("args") and isinstance(task["args"],(tuple,list)):
+                args += [a for a in task["args"]]
+            # Resolve any arg placeholders
+            args = self.resolve_args(args,disk=disk,folder_path=folder_path)
+            out = self.r.run({"args":args})
+            if out[2] != 0 and task.get("abort_on_fail"):
+                print(" --> Task returned a non-zero exit status - aborting...")
+                exit(1)
+
     def main(self):
         if not self.settings.get("no_header"):
             self.u.head()
@@ -338,6 +376,9 @@ class HackUpdate:
         print(" - Bound to PID {}".format(pid))
         subprocess.Popen(["caffeinate","-i","-w",pid])
         t = time.time() # Save the start time to use for later
+        # Check for pre-flight tasks
+        if self.settings.get("preflight",[]):
+            self.run_tasks(key="preflight",disk=efi,folder_path=folder_path)
         if skip_building_kexts:
             print("Skipping kext building...")
         else:
@@ -464,6 +505,9 @@ class HackUpdate:
                     else:
                         oc_diff = True # Retain differences
                         print("      - {}{}{}".format(self.c["r"],line,self.c["c"]))
+        # Check for post-flight tasks
+        if self.settings.get("postflight",[]):
+            self.run_tasks(key="postflight",disk=efi,folder_path=folder_path)
         # Reset our EFI to its original state
         if not efi_mounted:
             if oc_diff and not self.settings.get("occ_unmount",False):
