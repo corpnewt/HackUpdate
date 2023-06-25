@@ -24,6 +24,7 @@ class HackUpdate:
         if not self.settings:
             self.settings = {
                 # Default settings here
+                "debug_subscripts": False,
                 "efi"  : "bootloader", # ask, boot, bootloader, or the mount point/disk#s#
                 "disk" : None, # Overrides efi, and is an explicit mount point/identifier (not resolved to EFI)
                 "folder_path" : None, # Overrides disk and efi, and is a direct path to the EFI folder
@@ -291,7 +292,7 @@ class HackUpdate:
                 args += [a for a in task["args"]]
             # Resolve any arg placeholders
             args = self.resolve_args(args,disk=disk,folder_path=folder_path)
-            out = self.r.run({"args":args})
+            out = self.r.run({"args":args,"stream":self.settings.get("debug_subscripts",False)})
             if out[2] != 0 and task.get("abort_on_fail"):
                 print(" --> Task returned a non-zero exit status - aborting...")
                 exit(1)
@@ -406,7 +407,7 @@ class HackUpdate:
             print(" - Building kexts...")
             args = [os.path.join(lnf, self.settings.get("lnfrun","Run.command"))]
             args.extend(self.resolve_args(self.settings.get("lnf_args",["-r","-p","Default"]),disk=efi,folder_path=folder_path))
-            out = self.r.run({"args":args})
+            out = self.r.run({"args":args,"stream":self.settings.get("debug_subscripts",False)})
             # Let's quick format our output
             primed = False
             success = False
@@ -448,7 +449,7 @@ class HackUpdate:
             if folder_path: ke_defaults = [os.path.join(lnf,"Kexts"),"f="+folder_path]
             else: ke_defaults = ["-d",os.path.join(lnf,"Kexts"),efi]
             args.extend(self.resolve_args(self.settings.get("ke_args",ke_defaults),disk=efi,folder_path=folder_path))
-            out = self.r.run({"args":args})
+            out = self.r.run({"args":args,"stream":self.settings.get("debug_subscripts",False)})
             # Print the KextExtractor output
             check_primed = False
             for line in out[0].split("\n"):
@@ -467,7 +468,7 @@ class HackUpdate:
             print(" - Gathering/building and updating OC...")
             args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
             args.extend(self.resolve_args(self.settings.get("oc_args",["-n","-p",folder_path] if folder_path else ["-n","-d",efi]),disk=efi,folder_path=folder_path))
-            out = self.r.run({"args":args})
+            out = self.r.run({"args":args,"stream":self.settings.get("debug_subscripts",False)})
             # Gather the output after updating
             if not "Updating .efi files..." in out[0]:
                 print(" --> No .efi files updated!")
@@ -492,7 +493,7 @@ class HackUpdate:
             print(" - Gathering differences:")
             args = [os.path.join(occ, self.settings.get("occrun","OCConfigCompare.command"))]
             args.extend(self.resolve_args(self.settings.get("occ_args",["-w","-u",config_path]),disk=efi,folder_path=folder_path))
-            out = self.r.run({"args":args})
+            out = self.r.run({"args":args,"stream":self.settings.get("debug_subscripts",False)})
             if not "Checking for values missing from User plist:" in out[0]:
                 print(" --> Something went wrong comparing!")
             else:
@@ -531,6 +532,7 @@ if __name__ == '__main__':
     parser.add_argument("-o", "--skip-opencore", help="skip building and updating OpenCore via OC-Update", action="store_true")
     parser.add_argument("-p", "--skip-plist-compare", help="skip comparing config.plist to latest sample.plist via OCConfigCompare", action="store_true")
     parser.add_argument("-n", "--no-header", help="prevents clearing the screen and printing the header at script start", action="store_true")
+    parser.add_argument("-g", "--debug-subscripts", help="streams the output of the scripts HackUpdate calls for debug purposes", action="store_true")
     parser.add_argument("-s", "--settings", help="path to settings.json file to use (default is ./Scripts/settings.json)")
 
     args = parser.parse_args()
@@ -548,6 +550,8 @@ if __name__ == '__main__':
         h.settings["skip_plist_compare"] = args.skip_plist_compare
     if args.no_header:
         h.settings["no_header"] = args.no_header
+    if args.debug_subscripts:
+        h.settings["debug_subscripts"] = args.debug_subscripts
 
     # Check for pathing/disk/efi settings
     if args.folder_path:
