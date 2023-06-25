@@ -1,7 +1,7 @@
 # HackUpdate
 ```
 usage: HackUpdate.command [-h] [-e EFI] [-d DISK] [-f FOLDER_PATH] [-b] [-x]
-                          [-o] [-p] [-n] [-s SETTINGS]
+                          [-o] [-p] [-n] [-g] [-s SETTINGS]
 
 HackUpdate - a py script that automates other scripts.
 
@@ -24,6 +24,9 @@ options:
                         OCConfigCompare
   -n, --no-header       prevents clearing the screen and printing the header
                         at script start
+  -g, --debug-subscripts
+                        streams the output of the scripts HackUpdate calls for
+                        debug purposes
   -s SETTINGS, --settings SETTINGS
                         path to settings.json file to use (default is
                         ./Scripts/settings.json)
@@ -60,6 +63,7 @@ The above can be configured via `settings.json` file (either placed in HackUpdat
 
 ```json
 {
+  "debug_subscripts": false,
   "efi": "bootloader", 
   "disk": null, 
   "folder_path" : null,
