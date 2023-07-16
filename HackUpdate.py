@@ -27,6 +27,7 @@ class HackUpdate:
                 "debug_subscripts": False,
                 "efi"  : "bootloader", # ask, boot, bootloader, or the mount point/disk#s#
                 "disk" : None, # Overrides efi, and is an explicit mount point/identifier (not resolved to EFI)
+                "no_git": False, # Prevents attempting to git pull each repo
                 "folder_path" : None, # Overrides disk and efi, and is a direct path to the EFI folder
                 "no_header": False,
                 "skip_building_kexts" : False,
@@ -67,6 +68,28 @@ class HackUpdate:
             "b":u"\u001b[36;1m",
             "c":u"\u001b[0m"
         }
+        os.chdir(cwd)
+
+    def get_git(self):
+        # Return the first instance
+        git_path = self.r.run({"args":["which","git"]})[0].split("\n")[0].strip()
+        if git_path and os.path.isfile(git_path):
+            return git_path
+
+    def update_repo(self,git_path,repo_path):
+        cwd = os.getcwd()
+        os.chdir(repo_path)
+        o,e,r = self.r.run({"args":[git_path,"pull"]})
+        if r != 0:
+            if "not a git repository" in e:
+                print(" --> Not a git repository.")
+            else:
+                print(" --> Pull failed with error code: {}".format(r))
+        elif o:
+            if "up to date" in o:
+                print(" --> Already up to date.")
+            else:
+                print(" --> Updated to latest commit.")
         os.chdir(cwd)
 
     def get_time(self,t):
@@ -372,6 +395,14 @@ class HackUpdate:
                 if not self.d.is_mounted(efi):
                     print(" --> Failed to mount!")
                     exit(1)
+        git = None
+        if not self.settings.get("no_git"):
+            print("Locating git...")
+            git = self.get_git()
+            if git:
+                print(" - Located at: {}".format(git))
+            else:
+                print(" - Not located - will not 'git pull' repos")
         pid = str(os.getpid())
         print("Running caffeinate to prevent idle sleep...")
         print(" - Bound to PID {}".format(pid))
@@ -389,9 +420,12 @@ class HackUpdate:
                 print(" - Unable to locate!")
                 exit(1)
             print(" - Located at {}".format(lnf))
+            if git:
+                print(" - Running 'git pull'...")
+                self.update_repo(git,lnf)
             # Clear out old kexts
             if os.path.exists(os.path.join(lnf, "Kexts")):
-                print(" --> Kexts folder found, clearing...")
+                print(" - Kexts folder found, clearing...")
                 for x in os.listdir(os.path.join(lnf, "Kexts")):
                     if x.startswith("."):
                         continue
@@ -402,7 +436,7 @@ class HackUpdate:
                         else:
                             os.remove(test_path)
                     except:
-                        print(" ----> {} Failed to remove!".format(x))
+                        print(" --> {} Failed to remove!".format(x))
             # Let's build the new kexts
             print(" - Building kexts...")
             args = [os.path.join(lnf, self.settings.get("lnfrun","Run.command"))]
@@ -444,6 +478,9 @@ class HackUpdate:
                 print(" - Unable to locate!")
                 exit(1)
             print(" - Located at {}".format(ke))
+            if git:
+                print(" - Running 'git pull'...")
+                self.update_repo(git,ke)
             print(" - Extracting kexts...")
             args = [os.path.join(ke, self.settings.get("kerun","KextExtractor.command"))]
             if folder_path: ke_defaults = [os.path.join(lnf,"Kexts"),"f="+folder_path]
@@ -465,6 +502,9 @@ class HackUpdate:
                 print(" - Unable to locate!")
                 exit(1)
             print(" - Located at {}".format(oc))
+            if git:
+                print(" - Running 'git pull'...")
+                self.update_repo(git,oc)
             print(" - Gathering/building and updating OC...")
             args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
             args.extend(self.resolve_args(self.settings.get("oc_args",["-n","-p",folder_path] if folder_path else ["-n","-d",efi]),disk=efi,folder_path=folder_path))
@@ -484,6 +524,9 @@ class HackUpdate:
                 print(" - Unable to locate!")
                 exit(1)
             print(" - Located at {}".format(occ))
+            if git:
+                print(" - Running 'git pull'...")
+                self.update_repo(git,occ)
             print(" - Checking for config.plist")
             config_path = self.resolve_args(["[[config_path]]"],disk=efi,folder_path=folder_path)[0]
             if not config_path or not os.path.exists(config_path):
@@ -531,6 +574,7 @@ if __name__ == '__main__':
     parser.add_argument("-x", "--skip-extracting-kexts", help="skip updating kexts via KextExtractor", action="store_true")
     parser.add_argument("-o", "--skip-opencore", help="skip building and updating OpenCore via OC-Update", action="store_true")
     parser.add_argument("-p", "--skip-plist-compare", help="skip comparing config.plist to latest sample.plist via OCConfigCompare", action="store_true")
+    parser.add_argument("-t", "--no-git", help="don't attempt to update script repos with git pull", action="store_true")
     parser.add_argument("-n", "--no-header", help="prevents clearing the screen and printing the header at script start", action="store_true")
     parser.add_argument("-g", "--debug-subscripts", help="streams the output of the scripts HackUpdate calls for debug purposes", action="store_true")
     parser.add_argument("-s", "--settings", help="path to settings.json file to use (default is ./Scripts/settings.json)")
@@ -552,6 +596,8 @@ if __name__ == '__main__':
         h.settings["no_header"] = args.no_header
     if args.debug_subscripts:
         h.settings["debug_subscripts"] = args.debug_subscripts
+    if args.no_git:
+        h.settings["no_git"] = args.no_git
 
     # Check for pathing/disk/efi settings
     if args.folder_path:
