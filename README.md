@@ -1,7 +1,7 @@
 # HackUpdate
 ```
 usage: HackUpdate.command [-h] [-e EFI] [-d DISK] [-f FOLDER_PATH] [-b] [-x]
-                          [-o] [-p] [-n] [-g] [-s SETTINGS]
+                          [-o] [-p] [-t] [-n] [-g] [-s SETTINGS]
 
 HackUpdate - a py script that automates other scripts.
 
@@ -22,6 +22,7 @@ options:
   -p, --skip-plist-compare
                         skip comparing config.plist to latest sample.plist via
                         OCConfigCompare
+  -t, --no-git          don't attempt to update script repos with git pull
   -n, --no-header       prevents clearing the screen and printing the header
                         at script start
   -g, --debug-subscripts
@@ -65,7 +66,8 @@ The above can be configured via `settings.json` file (either placed in HackUpdat
 {
   "debug_subscripts": false,
   "efi": "bootloader", 
-  "disk": null, 
+  "disk": null,
+  "no_git": false,
   "folder_path" : null,
   "no_header": false,
   "skip_building_kexts" : false,
