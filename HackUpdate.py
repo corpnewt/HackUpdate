@@ -79,6 +79,7 @@ class HackUpdate:
     def update_repo(self,git_path,repo_path):
         cwd = os.getcwd()
         os.chdir(repo_path)
+        print(" - Updating repo...")
         o,e,r = self.r.run({"args":[git_path,"pull"]})
         if r != 0:
             if "not a git repository" in e:
@@ -402,7 +403,7 @@ class HackUpdate:
             if git:
                 print(" - Located at: {}".format(git))
             else:
-                print(" - Not located - will not 'git pull' repos")
+                print(" - Not located - will not attempt to update repos")
         pid = str(os.getpid())
         print("Running caffeinate to prevent idle sleep...")
         print(" - Bound to PID {}".format(pid))
@@ -421,7 +422,6 @@ class HackUpdate:
                 exit(1)
             print(" - Located at {}".format(lnf))
             if git:
-                print(" - Running 'git pull'...")
                 self.update_repo(git,lnf)
             # Clear out old kexts
             if os.path.exists(os.path.join(lnf, "Kexts")):
@@ -479,7 +479,6 @@ class HackUpdate:
                 exit(1)
             print(" - Located at {}".format(ke))
             if git:
-                print(" - Running 'git pull'...")
                 self.update_repo(git,ke)
             print(" - Extracting kexts...")
             args = [os.path.join(ke, self.settings.get("kerun","KextExtractor.command"))]
@@ -503,7 +502,6 @@ class HackUpdate:
                 exit(1)
             print(" - Located at {}".format(oc))
             if git:
-                print(" - Running 'git pull'...")
                 self.update_repo(git,oc)
             print(" - Gathering/building and updating OC...")
             args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
@@ -525,7 +523,6 @@ class HackUpdate:
                 exit(1)
             print(" - Located at {}".format(occ))
             if git:
-                print(" - Running 'git pull'...")
                 self.update_repo(git,occ)
             print(" - Checking for config.plist")
             config_path = self.resolve_args(["[[config_path]]"],disk=efi,folder_path=folder_path)[0]
@@ -574,7 +571,7 @@ if __name__ == '__main__':
     parser.add_argument("-x", "--skip-extracting-kexts", help="skip updating kexts via KextExtractor", action="store_true")
     parser.add_argument("-o", "--skip-opencore", help="skip building and updating OpenCore via OC-Update", action="store_true")
     parser.add_argument("-p", "--skip-plist-compare", help="skip comparing config.plist to latest sample.plist via OCConfigCompare", action="store_true")
-    parser.add_argument("-t", "--no-git", help="don't attempt to update script repos with git pull", action="store_true")
+    parser.add_argument("-t", "--no-git", help="don't attempt to update script repos with 'git pull'", action="store_true")
     parser.add_argument("-n", "--no-header", help="prevents clearing the screen and printing the header at script start", action="store_true")
     parser.add_argument("-g", "--debug-subscripts", help="streams the output of the scripts HackUpdate calls for debug purposes", action="store_true")
     parser.add_argument("-s", "--settings", help="path to settings.json file to use (default is ./Scripts/settings.json)")
