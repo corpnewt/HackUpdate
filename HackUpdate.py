@@ -532,7 +532,7 @@ class HackUpdate:
             print(" --> Located at {}".format(config_path))
             print(" - Gathering differences:")
             args = [os.path.join(occ, self.settings.get("occrun","OCConfigCompare.command"))]
-            args.extend(self.resolve_args(self.settings.get("occ_args",["-w","-u",config_path]),disk=efi,folder_path=folder_path))
+            args.extend(self.resolve_args(self.settings.get("occ_args",["-m","off","-w","-u",config_path]),disk=efi,folder_path=folder_path))
             out = self.r.run({"args":args,"stream":self.settings.get("debug_subscripts",False)})
             if not "Checking for values missing from User plist:" in out[0]:
                 print(" --> Something went wrong comparing!")
