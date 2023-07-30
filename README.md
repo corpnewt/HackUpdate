@@ -56,7 +56,7 @@ By default, Hackupdate will use the following CLI args for each:
 * Lilu And Friends: `-r -p Default`
 * KextExtractor: `-d folder_or_bootloader_efi kexts_path` (will resolve the `folder_or_bootloader_efi` and `kexts_path`)
 * OC-Update: `-n -d folder_or_bootloader_efi` (will resolve the `folder_or_bootloader_efi`)
-* OCConfigCompare: `-w -u config_path` (will resolve the `config_path`)
+* OCConfigCompare: `-m off -w -u config_path` (will resolve the `config_path`)
 
 ***
 
