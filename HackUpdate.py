@@ -113,6 +113,8 @@ class HackUpdate:
         # Walk the passed list of args and replace instances of the following
         # case-sensitive placeholders:
         #
+        # [[cd]]:          the current path to the folder containing this script
+        # [[user]]:        the current user's home folder
         # [[disk]]:        the target disk/efi identifier
         # [[mount_point]]: the target disk/efi mount point, if any
         # [[folder_path]]: the target folder, if any - overrides disk and mount_point
@@ -147,12 +149,14 @@ class HackUpdate:
             if os.path.isfile(o_check):
                 o = o_check
 
-        cwd = os.getcwd()
-        os.chdir(os.path.dirname(os.path.realpath(__file__)))
-        lnf = os.path.realpath(self.settings.get("lnf","../Lilu-and-Friends"))
-        ke  = os.path.realpath(self.settings.get("ke","../KextExtractor"))
-        oc  = os.path.realpath(self.settings.get("oc","../OC-Update"))
-        occ = os.path.realpath(self.settings.get("occ","../OCConfigCompare"))
+        cwd  = os.getcwd()
+        user = os.path.expanduser("~")
+        cd   = os.path.dirname(os.path.realpath(__file__))
+        os.chdir(cd)
+        lnf  = os.path.realpath(self.settings.get("lnf","../Lilu-and-Friends"))
+        ke   = os.path.realpath(self.settings.get("ke","../KextExtractor"))
+        oc   = os.path.realpath(self.settings.get("oc","../OC-Update"))
+        occ  = os.path.realpath(self.settings.get("occ","../OCConfigCompare"))
         os.chdir(cwd)
 
         new_args = []
@@ -167,7 +171,12 @@ class HackUpdate:
                     arg = arg.replace("[[mount_point]]",m)
                     if c: arg = arg.replace("[[config_path]]",c)
                     if o: arg = arg.replace("[[oc_path]]",o)
-            arg = arg.replace("[[lnf]]",lnf).replace("[[ke]]",ke).replace("[[oc]]",oc).replace("[[occ]]",occ)
+            arg = arg.replace("[[lnf]]",lnf) \
+                  .replace("[[ke]]",ke) \
+                  .replace("[[oc]]",oc) \
+                  .replace("[[occ]]",occ) \
+                  .replace("[[cd]]",cd) \
+                  .replace("[[user]]",user)
             new_args.append(arg)
         return new_args
 
