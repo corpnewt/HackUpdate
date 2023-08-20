@@ -289,8 +289,8 @@ class HackUpdate:
                 continue
             return efi
 
-    def run_tasks(self,key="preflight",disk=None,folder_path=None):
-        print("Iterating {} tasks ({:,} total)".format(key,len(self.settings[key])))
+    def run_tasks(self,key="preflight",name=None,disk=None,folder_path=None):
+        print("Iterating {} tasks ({:,} total)".format(name or key,len(self.settings[key])))
         for i,task in enumerate(self.settings[key],start=1):
             print(" - Task {:,} of {:,}:".format(i,len(self.settings[key])))
             if not "path" in task:
@@ -415,6 +415,8 @@ class HackUpdate:
         if skip_building_kexts:
             print("Skipping kext building...")
         else:
+            if self.settings.get("pre_lnf",[]):
+                self.run_tasks(key="pre_lnf",name="pre-kext building",disk=efi,folder_path=folder_path)
             # Let's try to build kexts
             print("Locating Lilu-And-Friends...")
             if not os.path.exists(lnf):
@@ -469,9 +471,13 @@ class HackUpdate:
             print("\n".join(["{} ----> {}".format(self.c["c"],x) for x in kextout["succeeded"]]))
             print(" --> Failed:")
             print("\n".join(["{} ----> {}".format(self.c["c"],x) for x in kextout["failed"]]))
+            if self.settings.get("post_lnf",[]):
+                self.run_tasks(key="post_lnf",name="post-kext building",disk=efi,folder_path=folder_path)
         if skip_extracting_kexts:
             print("Skipping kext extraction...")
         else:
+            if self.settings.get("pre_ke",[]):
+                self.run_tasks(key="pre_ke",disk=efi,name="pre-kext extraction",folder_path=folder_path)
             # Let's extract the kexts
             print("Locating KextExtractor...")
             if not os.path.exists(ke):
@@ -492,9 +498,13 @@ class HackUpdate:
                 if line.strip().startswith("Checking for "): check_primed = True
                 if not check_primed or not line.strip(): continue
                 print("    "+line)
+            if self.settings.get("post_ke",[]):
+                self.run_tasks(key="post_ke",name="post-kext extraction",disk=efi,folder_path=folder_path)
         if skip_opencore:
             print("Skipping OpenCore building and updating...")
         else:
+            if self.settings.get("pre_oc",[]):
+                self.run_tasks(key="pre_oc",name="pre-OpenCore building",disk=efi,folder_path=folder_path)
             # Let's get our OC
             print("Locating OC-Update...")
             if not os.path.exists(oc):
@@ -514,9 +524,13 @@ class HackUpdate:
                 for line in out[0].split("Updating .efi files...")[-1].split("\n"):
                     if not line.strip() or line.strip().lower() == "done.": continue
                     print("    "+line)
+            if self.settings.get("post_oc",[]):
+                self.run_tasks(key="post_oc",name="pre-OpenCore building",disk=efi,folder_path=folder_path)
         if skip_plist_compare:
             print("Skipping plist compare...")
         else:
+            if self.settings.get("pre_occ",[]):
+                self.run_tasks(key="pre_occ",name="pre-plist compare",disk=efi,folder_path=folder_path)
             print("Locating OCConfigCompare...")
             if not os.path.exists(occ):
                 print(" - Unable to locate!")
@@ -546,6 +560,8 @@ class HackUpdate:
                     else:
                         oc_diff = True # Retain differences
                         print("      - {}{}{}".format(self.c["r"],line,self.c["c"]))
+            if self.settings.get("post_occ",[]):
+                self.run_tasks(key="post_occ",name="post-plist compare",disk=efi,folder_path=folder_path)
         # Check for post-flight tasks
         if self.settings.get("postflight",[]):
             self.run_tasks(key="postflight",disk=efi,folder_path=folder_path)
