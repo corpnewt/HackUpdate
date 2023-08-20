@@ -127,6 +127,27 @@ Arguments allow for placeholder subsitution via the following:
 * `[[oc]]`: the path to the OC-Update folder
 * `[[occ]]`: the path to the OCConfigCompare folder
 
+Custom tasks can be run at different stages of the HackUpdate process.  The order the tasks are executed is as follows:
+
+* `preflight`: runs after finding/mounting the EFI and running `caffeinate`
+  * If present, runs regardless of which stages are enabled - as long as at least one is
+* `pre_lnf` or `post_lnf`: runs before or after the Lilu and Friends kext building stage respectively
+* `pre_ke` or `post_ke`: runs before or after the KextExtractor kext extraction stage respectively
+* `pre_oc` or `post_oc`: runs before or after the OC-Update OpenCore building stage respetively
+* `pre_occ` or `post_occ`: runs before or after the OCConfigCompare plist compare stage respectively
+* `postflight`: runs after all other stages, but before unmounting the EFI
+  * If present, runs regardless of which stages are enabled - as long as at least one is
+
+Each custom task is optional - but if defined, should be formatted as an array of dictionaries, each containing the following keys:
+
+* `path`: the full path to the target binary
+* `args`: an optional array of string arguments to pass to the command
+* `message`: an optional string message to display when the task runs
+* `abort_on_fail` an optional boolean value that sets whether we should stop if the task returns a non-zero status (defaults to `false`)
+
+All custom task `args` allow for the same variable substitutions as the `*_args`.
+
+
 Any settings omitted from a custom `settings.json` will fall back to defaults.
 
 ***
