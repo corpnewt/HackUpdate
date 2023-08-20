@@ -126,6 +126,9 @@ Arguments allow for placeholder subsitution via the following:
 * `[[ke]]`: the path to the KextExtractor folder
 * `[[oc]]`: the path to the OC-Update folder
 * `[[occ]]`: the path to the OCConfigCompare folder
+* `[[hu]]`: the path to the HackUpdate folder
+* `[[user]]`: the path to the current user's home folder
+* `[[cd]]`: the current directory of the parent shell
 
 Custom tasks can be run at different stages of the HackUpdate process.  The order the tasks are executed is as follows:
 
