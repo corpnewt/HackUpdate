@@ -79,7 +79,8 @@ class HackUpdate:
     def update_repo(self,git_path,repo_path):
         cwd = os.getcwd()
         os.chdir(repo_path)
-        print(" - Updating repo...")
+        print(" - Updating {} repo...".format(os.path.basename(repo_path)))
+        updated = False
         o,e,r = self.r.run({"args":[git_path,"pull"]})
         if r != 0:
             if "not a git repository" in e:
@@ -91,7 +92,9 @@ class HackUpdate:
                 print(" --> Already up to date.")
             else:
                 print(" --> Updated to latest commit.")
+                updated = True
         os.chdir(cwd)
+        return updated
 
     def get_time(self,t):
         # A helper function to return a human readable time string from seconds
@@ -353,6 +356,21 @@ class HackUpdate:
         oc  = os.path.realpath(self.settings.get("oc","../OC-Update"))
         occ = os.path.realpath(self.settings.get("occ","../OCConfigCompare"))
         os.chdir(cwd)
+
+        # Establish git and try to update ourselves if possible
+        git = None
+        if not self.settings.get("no_git"):
+            print("Locating git...")
+            git = self.get_git()
+            if git:
+                print(" - Located at: {}".format(git))
+                # Try our update
+                if self.update_repo(git,os.path.dirname(os.path.realpath(__file__))):
+                    print("Updates found - restarting...")
+                    os.execv(sys.executable,[sys.executable,os.path.realpath(__file__)]+sys.argv[1:])
+            else:
+                print(" - Not located - will not attempt to update repos")
+
         # Check if we've disabled all steps
         if all((skip_building_kexts,skip_extracting_kexts,skip_opencore,skip_plist_compare)):
             print("All steps skipped, nothing to do.")
@@ -405,14 +423,6 @@ class HackUpdate:
                 if not self.d.is_mounted(efi):
                     print(" --> Failed to mount!")
                     exit(1)
-        git = None
-        if not self.settings.get("no_git"):
-            print("Locating git...")
-            git = self.get_git()
-            if git:
-                print(" - Located at: {}".format(git))
-            else:
-                print(" - Not located - will not attempt to update repos")
         pid = str(os.getpid())
         print("Running caffeinate to prevent idle sleep...")
         print(" - Bound to PID {}".format(pid))
@@ -421,11 +431,15 @@ class HackUpdate:
         # Check for pre-flight tasks
         if self.settings.get("preflight",[]):
             self.run_tasks(key="preflight",disk=efi,folder_path=folder_path)
+        # Set up Downloading vs Building nomenclature for L&F
+        lnf_args = self.settings.get("lnf_args",["-r","-p","Default"])
+        lnf_args_lower = [x.lower() for x in lnf_args]
+        lnf_verb = "Downloading" if "-m" in lnf_args_lower and not "build" in lnf_args_lower else "Building"
         if skip_building_kexts:
-            print("Skipping kext building...")
+            print("Skipping kext {}...".format(lnf_verb.lower()))
         else:
             if self.settings.get("pre_lnf",[]):
-                self.run_tasks(key="pre_lnf",name="pre-kext building",disk=efi,folder_path=folder_path)
+                self.run_tasks(key="pre_lnf",name="pre-kext {}".format(lnf_verb.lower()),disk=efi,folder_path=folder_path)
             # Let's try to build kexts
             print("Locating Lilu-And-Friends...")
             if not os.path.exists(lnf):
@@ -449,9 +463,9 @@ class HackUpdate:
                     except:
                         print(" --> {} Failed to remove!".format(x))
             # Let's build the new kexts
-            print(" - Building kexts...")
+            print(" - {} kexts...".format(lnf_verb))
             args = [os.path.join(lnf, self.settings.get("lnfrun","Run.command"))]
-            args.extend(self.resolve_args(self.settings.get("lnf_args",["-r","-p","Default"]),disk=efi,folder_path=folder_path))
+            args.extend(self.resolve_args(lnf_args,disk=efi,folder_path=folder_path))
             out = self.r.run({"args":args,"stream":self.settings.get("debug_subscripts",False)})
             # Let's quick format our output
             primed = False
@@ -481,7 +495,7 @@ class HackUpdate:
             print(" --> Failed:")
             print("\n".join(["{} ----> {}".format(self.c["c"],x) for x in kextout["failed"]]))
             if self.settings.get("post_lnf",[]):
-                self.run_tasks(key="post_lnf",name="post-kext building",disk=efi,folder_path=folder_path)
+                self.run_tasks(key="post_lnf",name="post-kext {}".format(lnf_verb),disk=efi,folder_path=folder_path)
         if skip_extracting_kexts:
             print("Skipping kext extraction...")
         else:
@@ -509,11 +523,15 @@ class HackUpdate:
                 print("    "+line)
             if self.settings.get("post_ke",[]):
                 self.run_tasks(key="post_ke",name="post-kext extraction",disk=efi,folder_path=folder_path)
+        # Set up Downloading vs Building nomenclature for OC-Update
+        oc_args = self.settings.get("oc_args",["-n","-p",folder_path] if folder_path else ["-n","-d",efi])
+        oc_args_lower = [x.lower() for x in oc_args]
+        oc_verb = "Downloading" if "-s" in oc_args_lower and not "build" in oc_args_lower else "Building"
         if skip_opencore:
-            print("Skipping OpenCore building and updating...")
+            print("Skipping OpenCore {} and updating...".format(oc_verb.lower()))
         else:
             if self.settings.get("pre_oc",[]):
-                self.run_tasks(key="pre_oc",name="pre-OpenCore building",disk=efi,folder_path=folder_path)
+                self.run_tasks(key="pre_oc",name="pre-OpenCore {}".format(oc_verb.lower()),disk=efi,folder_path=folder_path)
             # Let's get our OC
             print("Locating OC-Update...")
             if not os.path.exists(oc):
@@ -522,9 +540,9 @@ class HackUpdate:
             print(" - Located at {}".format(oc))
             if git:
                 self.update_repo(git,oc)
-            print(" - Gathering/building and updating OC...")
+            print(" - {} and updating OC...".format(oc_verb))
             args = [os.path.join(oc, self.settings.get("ocrun","OC-Update.command"))]
-            args.extend(self.resolve_args(self.settings.get("oc_args",["-n","-p",folder_path] if folder_path else ["-n","-d",efi]),disk=efi,folder_path=folder_path))
+            args.extend(self.resolve_args(oc_args,disk=efi,folder_path=folder_path))
             out = self.r.run({"args":args,"stream":self.settings.get("debug_subscripts",False)})
             # Gather the output after updating
             if not "Updating .efi files..." in out[0]:
@@ -534,7 +552,7 @@ class HackUpdate:
                     if not line.strip() or line.strip().lower() == "done.": continue
                     print("    "+line)
             if self.settings.get("post_oc",[]):
-                self.run_tasks(key="post_oc",name="pre-OpenCore building",disk=efi,folder_path=folder_path)
+                self.run_tasks(key="post_oc",name="pre-OpenCore {}".format(oc_verb.lower()),disk=efi,folder_path=folder_path)
         if skip_plist_compare:
             print("Skipping plist compare...")
         else:
