@@ -434,7 +434,7 @@ class HackUpdate:
         # Set up Downloading vs Building nomenclature for L&F
         lnf_args = self.settings.get("lnf_args",["-r","-p","Default"])
         lnf_args_lower = [x.lower() for x in lnf_args]
-        lnf_verb = "Downloading" if "-m" in lnf_args_lower and not "build" in lnf_args_lower else "Building"
+        lnf_verb = "Downloading" if ("-m" in lnf_args_lower or "--build-mode" in lnf_args_lower) and not "build" in lnf_args_lower else "Building"
         if skip_building_kexts:
             print("Skipping kext {}...".format(lnf_verb.lower()))
         else:
@@ -526,7 +526,7 @@ class HackUpdate:
         # Set up Downloading vs Building nomenclature for OC-Update
         oc_args = self.settings.get("oc_args",["-n","-p",folder_path] if folder_path else ["-n","-d",efi])
         oc_args_lower = [x.lower() for x in oc_args]
-        oc_verb = "Downloading" if "-s" in oc_args_lower and not "build" in oc_args_lower else "Building"
+        oc_verb = "Downloading" if ("-s" in oc_args_lower or "--source" in oc_args_lower) and not "build" in oc_args_lower else "Building"
         if skip_opencore:
             print("Skipping OpenCore {} and updating...".format(oc_verb.lower()))
         else:
