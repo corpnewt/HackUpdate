@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # 0.0.0
 from Scripts import bdmesg, disk, run, utils
-import os, sys, json, shutil, argparse, subprocess, datetime, time
+import os, sys, json, shutil, argparse, subprocess, datetime, time, glob
 
 class HackUpdate:
     def __init__(self, **kwargs):
@@ -15,11 +15,26 @@ class HackUpdate:
         cwd = os.getcwd()
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
         # Load the settings if they exist
-        try:
-            settings_file = self.u.check_path(kwargs.get("settings","./Scripts/settings.json"))
-            if settings_file: # The path resolved properly
-                self.settings = json.load(open(settings_file))
-        except: pass
+        settings_default = "./Scripts/settings.json"
+        settings_path = kwargs.get("settings",settings_default)
+        self.settings_file = self.u.check_path(settings_path)
+        if settings_path != settings_default and not self.settings_file:
+            # We have one specified, but couldn't find it
+            self.u.head("Settings Error")
+            print("")
+            print("Failed to locate \"{}\".".format(settings_path))
+            print("")
+            exit(1)
+        if self.settings_file:
+            # The path resolved properly - try loading it
+            try:
+                self.settings = json.load(open(self.settings_file))
+            except Exception as e:
+                self.u.head("Settings Error")
+                print("")
+                print("Failed to load \"{}\":\n\n{}".format(os.path.basename(self.settings_file),e))
+                print("")
+                exit(1)
         # Fall back on defaults in the event they don't exist, or don't load
         if not self.settings:
             self.settings = {
@@ -328,6 +343,20 @@ class HackUpdate:
                 args += [a for a in task["args"]]
             # Resolve any arg placeholders
             args = self.resolve_args(args,disk=disk,folder_path=folder_path)
+            # Glob as needed
+            if task.get("glob"):
+                globbed_args = []
+                for arg in args:
+                    if "*" in arg:
+                        try:
+                            arg = glob.glob(arg)
+                        except:
+                            pass
+                    if isinstance(arg,list):
+                        globbed_args.extend(arg)
+                    else:
+                        globbed_args.append(arg)
+                args = globbed_args
             out = self.r.run({"args":args,"stream":self.settings.get("debug_subscripts",False)})
             if out[2] != 0 and task.get("abort_on_fail"):
                 print(" --> Task returned a non-zero exit status - aborting...")
@@ -356,6 +385,12 @@ class HackUpdate:
         oc  = os.path.realpath(self.settings.get("oc","../OC-Update"))
         occ = os.path.realpath(self.settings.get("occ","../OCConfigCompare"))
         os.chdir(cwd)
+
+        # Check if we're using a settings file - and print it if so
+        if self.settings_file:
+            print("Using settings from:\n - {}".format(self.settings_file))
+        else:
+            print("Using default settings")
 
         # Establish git and try to update ourselves if possible
         git = None
