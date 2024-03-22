@@ -94,7 +94,8 @@ The above can be configured via `settings.json` file (either placed in HackUpdat
         "arguments"
       ],
       "message": "Whatever you want to print during the task",
-      "abort_on_fail": true
+      "abort_on_fail": true,
+      "glob": true
     }
   ],
   "postflight": [
@@ -104,7 +105,8 @@ The above can be configured via `settings.json` file (either placed in HackUpdat
         "arguments"
       ],
       "message": "Whatever you want to print during the task",
-      "abort_on_fail": true
+      "abort_on_fail": true,
+      "glob": false
     }
   ],
 }
@@ -147,6 +149,7 @@ Each custom task is optional - but if defined, should be formatted as an array o
 * `args`: an optional array of string arguments to pass to the command
 * `message`: an optional string message to display when the task runs
 * `abort_on_fail` an optional boolean value that sets whether we should stop if the task returns a non-zero status (defaults to `false`)
+* `glob` an optional boolean value that sets whether or not to use globbing for wildcards (`*`) in arguments (defaults to `false`)
 
 All custom task `args` allow for the same variable substitutions as the `*_args`.
 
