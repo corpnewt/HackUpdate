@@ -5,9 +5,17 @@ import os, sys, json, shutil, argparse, subprocess, datetime, time, glob
 
 class HackUpdate:
     def __init__(self, **kwargs):
-        self.r  = run.Run()
-        self.d  = disk.Disk()
-        self.u  = utils.Utils("HackUpdate")
+        self.u = utils.Utils("HackUpdate")
+        # Verify running OS
+        if not sys.platform.lower() == "darwin":
+            self.u.head("Wrong OS!")
+            print("")
+            print("This script can only be run on macOS!")
+            print("")
+            self.u.grab("Press [enter] to exit...")
+            exit(1)
+        self.r = run.Run()
+        self.d = disk.Disk()
         self.boot_manager = bdmesg.get_bootloader_uuid()
         # Get the tools we need
         self.script_folder = "Scripts"
